@@ -101,6 +101,6 @@ ENV/
 .mypy_cache/
 
 # data
-fcis_biseg/model/pretrained_model/
+fcis_biseg/model/pretrained_model/*
 # log
-fcis_biseg/output/
+fcis_biseg/output/*
