@@ -104,3 +104,6 @@ ENV/
 fcis_biseg/model/pretrained_model/*
 # log
 fcis_biseg/output/*
+
+# vim cache
+*.swp

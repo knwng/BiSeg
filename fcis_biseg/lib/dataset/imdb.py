@@ -225,12 +225,10 @@ class IMDB(object):
             if 'cache_seg_inst' in roi_rec:
                 [filename, extension] = os.path.splitext(roi_rec['cache_seg_inst'])
                 entry['cache_seg_inst'] = os.path.join(filename + '_flip' + extension)
-            '''
             # if roidb has ss-mask
             if 'cache_seg_cls' in roi_rec:
                 [filename, extension] = os.path.splitext(roi_rec['cache_seg_cls'])
                 entry['cache_seg_cls'] = os.path.join(filename + '_flip' + extension)
-            '''
 
 
             roidb.append(entry)
