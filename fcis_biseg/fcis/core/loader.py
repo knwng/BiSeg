@@ -13,9 +13,11 @@ from mxnet.executor_manager import _split_input_slice
 from rpn.rpn import get_rpn_testbatch, get_rpn_batch, assign_anchor
 from mask.mask_transform import get_gt_masks
 
+from fcn-loader import FilIter
 
 class AnchorLoader(mx.io.DataIter):
 
+    # def __init__(self, feat_sym, iter_list, roidb, config, batch_size=1, shuffle=False, ctx=None, work_load_list=None,
     def __init__(self, feat_sym, roidb, config, batch_size=1, shuffle=False, ctx=None, work_load_list=None,
                  feat_stride=16, anchor_scales=(8, 16, 32), anchor_ratios=(0.5, 1, 2), allowed_border=0,
                  aspect_grouping=False):
@@ -34,6 +36,9 @@ class AnchorLoader(mx.io.DataIter):
         self.anchor_ratios = anchor_ratios
         self.allowed_border = allowed_border
         self.aspect_grouping = aspect_grouping
+        
+        # combine other DataIter
+        # self.iters = iter_list
 
         # infer properties from roidb
         self.size = len(roidb)
@@ -42,6 +47,9 @@ class AnchorLoader(mx.io.DataIter):
         # decide data and label names
         if config.TRAIN.END2END:
             self.data_name = ['data', 'im_info', 'gt_boxes', 'gt_masks']
+            # add semantic segmentation mask
+            if config.SS:
+                data_name.append('ss_masks')
         else:
             self.data_name = ['data']
         self.label_name = ['proposal_label', 'proposal_bbox_target', 'proposal_bbox_weight']
@@ -57,6 +65,9 @@ class AnchorLoader(mx.io.DataIter):
         self.get_batch_parallel()
 
     def reset(self):
+        # reset combined DataIter
+        # for i in self.iters:
+        #     i.reset()
         self.cur = 0
         if self.shuffle:
             if self.aspect_grouping:
@@ -77,27 +88,45 @@ class AnchorLoader(mx.io.DataIter):
 
     @property
     def provide_data(self):
-        return [[(k, v.shape) for k, v in zip(self.data_name, self.data[i])] for i in xrange(len(self.data))]
+        data_tmp = [[(k, v.shape) for k, v in zip(self.data_name, self.data[i])] for i in xrange(len(self.data))]
+        # data for fcn is input image, while label is masks
+        # for i in self.iters:
+        #     data_tmp.append(*i.provide_label)
+        return data_tmp
 
     @property
     def provide_label(self):
-        return [[(k, v.shape) for k, v in zip(self.label_name, self.label[i])] for i in xrange(len(self.label))]
+        data_tmp = [[(k, v.shape) for k, v in zip(self.label_name, self.label[i])] for i in xrange(len(self.label))]
+        # for i in self.iters:
+        #     data_tmp.append(*i.provide_label)
+        return data_tmp
 
     @property
     def provide_data_single(self):
-        return [(k, v.shape) for k, v in zip(self.data_name, self.data[0])]
+        data_tmp = [(k, v.shape) for k, v in zip(self.data_name, self.data[0])]
+        # data for fcn is input image, while label is masks
+        # for i in self.iters:
+        #     data_tmp.append(*i.provide_label_single)
+        return data_tmp 
 
     @property
     def provide_label_single(self):
-        return [(k, v.shape) for k, v in zip(self.label_name, self.label[0])]
+        data_tmp = [(k, v.shape) for k, v in zip(self.label_name, self.label[0])]
+        # for i in self.iters:
+        #     data_tmp.append(*i.provide_label_single)
+        return data_tmp
 
     def iter_next(self):
         return self.cur + self.batch_size <= self.size
 
     def next(self):
+        batches = [i.next() for i in self.iters]
         if self.iter_next():
             self.get_batch_parallel()
             self.cur += self.batch_size
+            # data_extend = self.data
+            # for b in batches:
+            #     data_extend.append(*b.data)
             return mx.io.DataBatch(data=self.data, label=self.label,
                                    pad=self.getpad(), index=self.getindex(),
                                    provide_data=self.provide_data, provide_label=self.provide_label)
@@ -179,9 +208,16 @@ class AnchorLoader(mx.io.DataIter):
         data['gt_boxes'] = label['gt_boxes'][np.newaxis, :, :]
 
         # add gt_masks to data for e2e
-        assert len(roidb) == 1
+        # assert len(roidb) == 1
+        assert len(roidb) == 1 
         gt_masks = get_gt_masks(roidb[0]['cache_seg_inst'], data['im_info'][0,:2].astype('int'))
         data['gt_masks'] = gt_masks
+
+        if config.SS:
+            # add ss_masks to data for e2e
+            assert len(roidb) == 1
+            ss_masks = get_ss_masks(roidb[0]['cache_seg_cls'], data['im_info'][0, :2].astype('int'))
+            data['ss_masks'] = ss_masks
 
         # assign anchor for label
         label = assign_anchor(feat_shape, label['gt_boxes'], data['im_info'], self.cfg,

@@ -42,6 +42,7 @@ import numpy as np
 from symbols import *
 from core import callback, metric
 from core.loader import AnchorLoader
+from core.fcn-loader import FileIter
 from core.module import MutableModule
 from utils.create_logger import create_logger
 from utils.load_data import load_gt_sdsdb, merge_roidb, filter_roidb
@@ -81,7 +82,13 @@ def train_net(args, ctx, pretrained, epoch, prefix, begin_epoch, end_epoch, lr, 
     sdsdb = filter_roidb(sdsdb, config)
 
     # load training data
-    train_data = AnchorLoader(feat_sym, sdsdb, config, batch_size=input_batch_size, shuffle=config.TRAIN.SHUFFLE,
+    iter_list = [FileIter(
+                os.path.join(config.dataset.dataset_path, 'VOCSDS/ImageSets/Main/')
+                flist_name = "train.txt",
+                # cut_off_size = 600, 
+                rgb_mean = (103.06, 115.90, 123.15)
+                )]
+    train_data = AnchorLoader(feat_sym, iter_list, sdsdb, config, batch_size=input_batch_size, shuffle=config.TRAIN.SHUFFLE,
                               ctx=ctx, feat_stride=config.network.RPN_FEAT_STRIDE, anchor_scales=config.network.ANCHOR_SCALES,
                               anchor_ratios=config.network.ANCHOR_RATIOS, aspect_grouping=config.TRAIN.ASPECT_GROUPING,
                               allowed_border=config.TRAIN.RPN_ALLOWED_BORDER)

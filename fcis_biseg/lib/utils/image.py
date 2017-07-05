@@ -44,6 +44,7 @@ def get_segmentation_image(segdb, config):
     propocess image and return segdb
     :param segdb: a list of segdb
     :return: list of img as mxnet format
+    # add semamtic segmentation data
     """
     num_images = len(segdb)
     assert num_images > 0, 'No images'

@@ -134,13 +134,13 @@ def vgg16_score(input, numclass, workspace_default=1024):
                 workspace=workspace_default, name="score")
     return score
 
-def fcnxs_score(input, crop, offset, kernel=(64,64), stride=(32,32), numclass=21, workspace_default=1024):
+def fcnxs_score(input, crop, masks, offset, kernel=(64,64), stride=(32,32), numclass=21, workspace_default=1024):
     # score out
     bigscore = mx.symbol.Deconvolution(data=input, kernel=kernel, stride=stride, adj=(stride[0]-1, stride[1]-1),
                num_filter=numclass, workspace=workspace_default, name="bigscore")
     upscore = mx.symbol.Crop(*[bigscore, crop], offset=offset, name="upscore")
     # upscore = mx.symbol.Crop(*[input, crop], offset=offset, name="upscore")
-    softmax = mx.symbol.SoftmaxOutput(data=upscore, multi_output=True, use_ignore=True, ignore_label=255, name="softmax")
+    softmax = mx.symbol.SoftmaxOutput(data=upscore, label=masks, multi_output=True, use_ignore=True, ignore_label=255, name="fcn-softmax")
     return softmax
 
 def get_fcn32s_symbol(numclass=21, workspace_default=1024):
@@ -166,7 +166,7 @@ def get_fcn16s_symbol(numclass=21, workspace_default=1024):
     softmax = fcnxs_score(score_fused, data, offset()["fcn16s_upscore"], (32, 32), (16, 16), numclass, workspace_default)
     return softmax
 
-def get_fcn8s_symbol(data, numclass=21, workspace_default=1024):
+def get_fcn8s_symbol(data, masks, numclass=21, workspace_default=1024):
 # def get_fcn8s_symbol(numclass=21, workspace_default=1024):
     # import data shape = [batch_size, channel, height, width]
     # data = mx.symbol.Variable(name="data")
@@ -187,11 +187,11 @@ def get_fcn8s_symbol(data, numclass=21, workspace_default=1024):
                 workspace=workspace_default, name="score_pool3")
     score_pool3c = mx.symbol.Crop(*[score_pool3, score4], offset=offset()["score_pool3c"], name="score_pool3c")
     score_final = score4 + score_pool3c
-    # softmax = fcnxs_score(score_final, data, offset()["fcn8s_upscore"], (16, 16), (8, 8), numclass, workspace_default)
-    bigscore = mx.symbol.Deconvolution(data=score_final, kernel=(16, 16), stride=(8, 8), adj=(7, 7), 
-               num_filter=numclass, workspace=workspace_default, name="bigscore")
-    upscore = mx.symbol.Crop(*[bigscore, data], offset=offset()["fcn8s_upscore"], name="upscore")
-    softmax = mx.symbol.softmax(data=upscore, name="softmax")
+    softmax = fcnxs_score(score_final, data, masks, offset()["fcn8s_upscore"], (16, 16), (8, 8), numclass, workspace_default)
+    # bigscore = mx.symbol.Deconvolution(data=score_final, kernel=(16, 16), stride=(8, 8), adj=(7, 7), 
+    #            num_filter=numclass, workspace=workspace_default, name="bigscore")
+    # upscore = mx.symbol.Crop(*[bigscore, data], offset=offset()["fcn8s_upscore"], name="upscore")
+    # softmax = mx.symbol.softmax(data=upscore, name="softmax")
     # just return softmax score map, loss will be defined later in biseg.py
     # output shape is [batch_size, numclass, height, width]
     return softmax

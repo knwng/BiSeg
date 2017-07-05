@@ -61,10 +61,13 @@ dataset:
   NUM_CLASSES: 21
   dataset: PascalVOC
   dataset_path: "/data/VOCdevkit"
+  flist_path: ""
   image_set: SDS_train
   root_path: "./data"
   test_image_set: SDS_val
   proposal: rpn
+# whether use semantic segmentation
+SS: true
 TRAIN:
   lr: 0.0005
   lr_step: '14'

@@ -706,6 +706,7 @@ class resnet_v1_101_fcis(Symbol):
             im_info = mx.sym.Variable(name='im_info')
             gt_boxes = mx.sym.Variable(name='gt_boxes')
             gt_masks = mx.sym.Variable(name='gt_masks')
+            ss_masks = mx.sym.Variable(name='ss_masks')
             rpn_label = mx.sym.Variable(name='proposal_label')
             rpn_bbox_target = mx.sym.Variable(name='proposal_bbox_target')
             rpn_bbox_weight = mx.sym.Variable(name='proposal_bbox_weight')
@@ -716,7 +717,7 @@ class resnet_v1_101_fcis(Symbol):
 
 	
         # semantic segmentation using fcn-8s
-        fcnx = symbol_fcnxs.get_fcn8s_symbol(data, numclass=num_classes, workspace_default=1536)
+        fcnx = symbol_fcnxs.get_fcn8s_symbol(data=data, masks=ss_masks, numclass=num_classes, workspace_default=1536)
 	fcnx = mx.sym.Pooling(data=fcnx, kernel=(16, 16), pool_type='max', stride=(16, 16), name='fcn_pool')
         # shared convolutional layers
         conv_feat = self.get_resnet_v1_conv4(data)
@@ -859,12 +860,10 @@ class resnet_v1_101_fcis(Symbol):
                 seg_prob = mx.sym.SoftmaxOutput(name='seg_prob', data=seg_pred, label=mask_targets_ohem, multi_output=True,
                                                 normalization='null', use_ignore=True, ignore_label=-1,
                                                 grad_scale=cfg.TRAIN.LOSS_WEIGHT[1] / cfg.TRAIN.BATCH_ROIS_OHEM)
-		'''
                 # semantic segmentation loss
                 # ss_prob = mx.sym.SoftmaxOutput(name='ss_prob', data=fcnx, label=mask_targets_ohem, multi_output=True,
                 #                                 normalization='null', use_ignore=True, ignore_label=-1,
                 #                                 grad_scale=cfg.TRAIN.LOSS_WEIGHT[1] / cfg.TRAIN.BATCH_ROIS_OHEM)
-		'''
                 bbox_loss_t = bbox_weights_ohem * mx.sym.smooth_l1(name='bbox_loss_t', scalar=1.0, data=(bbox_pred - bbox_target))
                 # bbox_loss_t = bbox_weights_ohem * mx.sym.smooth_l1(name='bbox_loss_t', scalar=1.0, data=(bbox_pred - bbox_target))
                 bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_t, grad_scale=cfg.TRAIN.LOSS_WEIGHT[2] / cfg.TRAIN.BATCH_ROIS_OHEM)
@@ -876,7 +875,7 @@ class resnet_v1_101_fcis(Symbol):
                                                 normalization='null', use_ignore=True, ignore_label=-1,
                                                 grad_scale=cfg.TRAIN.LOSS_WEIGHT[1] / cfg.TRAIN.BATCH_ROIS)
                 # semantic segmentation loss
-                # ss_prob = mx.sym.SoftmaxOutput(name='ss_prob', data=fcnx, label=mask_reg_targets, multi_output=True,
+                # ss_prob = mx.sym.SoftmaxOutput(name='ss_prob', data=fcnx, label=ss_masks, multi_output=True,
                 #                                 normalization='null', use_ignore=True, ignore_label=-1,
                 #                                 grad_scale=cfg.TRAIN.LOSS_WEIGHT[1] / cfg.TRAIN.BATCH_ROIS)
                 # bbox_loss_t = bbox_weights_ohem * mx.sym.smooth_l1(name='bbox_loss_t', scalar=1.0, data=(bbox_pred - bbox_target))
@@ -889,7 +888,8 @@ class resnet_v1_101_fcis(Symbol):
                                       name='cls_prob_reshape')
             bbox_loss = mx.sym.Reshape(data=bbox_loss, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 4 * num_reg_classes),
                                        name='bbox_loss_reshape')
-            group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label)])
+            # group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label)])
+            group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, ss_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label)])
         else:
             cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
             if cfg.TEST.ITER == 2:
@@ -919,6 +919,7 @@ class resnet_v1_101_fcis(Symbol):
                 score_seg_iter2 = mx.sym.Reshape(name='score_seg', data=cls_prob_iter2, shape=(-1, num_classes, 1, 1))
                 seg_softmax_iter2 = mx.contrib.sym.ChannelOperator(name='seg_softmax', data=psroipool_cls_seg_iter2, group=num_classes, op_type='Group_Softmax')
                 seg_pred_iter2 = mx.contrib.sym.ChannelOperator(name='seg_pred', data=seg_softmax_iter2, pick_idx=score_seg_iter2, group=num_classes, op_type='Group_Pick', pick_type='Score_Pick')
+
                 # bbox regression path
                 bbox_pred_iter2 = mx.sym.Pooling(name='bbox_pred', data=psroipool_bbox_pred_iter2, pool_type='avg', global_pool=True, kernel=(21, 21), stride=(21,21))
                 bbox_pred_iter2 = mx.sym.Reshape(name='bbox_pred_reshape', data=bbox_pred_iter2, shape=(-1, 4 * num_reg_classes))
@@ -951,4 +952,16 @@ class resnet_v1_101_fcis(Symbol):
         arg_params['fcis_cls_seg_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['fcis_cls_seg_bias'])
         arg_params['fcis_bbox_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fcis_bbox_weight'])
         arg_params['fcis_bbox_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['fcis_bbox_bias'])
+        # init fcn-8s parameters
+        '''
+        arg_params['score_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fcis_bbox_weight'])
+        arg_params['score_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['fcis_bbox_bias'])
+        arg_params['score_pool4_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fcis_bbox_weight'])
+        arg_params['score_pool4_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['fcis_bbox_bias'])
+        arg_params['score_pool3_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fcis_bbox_weight'])
+        arg_params['score_pool3_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['fcis_bbox_bias'])
+        arg_params['bigscore_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fcis_bbox_weight'])
+        arg_params['score2_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fcis_bbox_weight'])
+        arg_params['scor4_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fcis_bbox_weight'])
+        '''
 

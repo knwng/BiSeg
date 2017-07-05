@@ -26,6 +26,10 @@ def load_proposal_roidb(dataset_name, image_set_name, root_path, dataset_path, r
 def load_gt_sdsdb(dataset_name, image_set_name, root_path, dataset_path,
                   result_path=None, flip=False, mask_size=21, binary_thresh=0.4):
     """ load ground truth sdsdb """
+    # dataset_name='PascalVOC'
+    # image_set_name=
+    # root_path = './data/'
+    # dataset_path = '/data/VOCdevkit' 
     imdb = eval(dataset_name)(image_set_name, root_path, dataset_path, result_path,
                               mask_size=mask_size, binary_thresh=binary_thresh)
     sdsdb = imdb.gt_sdsdb()

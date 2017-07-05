@@ -48,6 +48,7 @@ from utils.load_data import load_gt_sdsdb, merge_roidb, filter_roidb
 from utils.load_model import load_param
 from utils.PrefetchingIter import PrefetchingIter
 from utils.lr_scheduler import WarmupMultiFactorScheduler
+import init_fcnxs
 
 def train_net(args, ctx, pretrained_res, pretrained_vgg, epoch, prefix, begin_epoch, end_epoch, lr, lr_step):
     mx.random.seed(3)
@@ -91,6 +92,8 @@ def train_net(args, ctx, pretrained_res, pretrained_vgg, epoch, prefix, begin_ep
     max_data_shape, max_label_shape = train_data.infer_shape(max_data_shape)
     max_data_shape.append(('gt_boxes', (config.TRAIN.BATCH_IMAGES, 100, 5)))
     max_data_shape.append(('gt_masks', (config.TRAIN.BATCH_IMAGES, 100, max([v[0] for v in config.SCALES]), max(v[1] for v in config.SCALES))))
+    if config.SS:
+        max_data_shape.append(('ss_masks', (config.TRAIN.BATCH_IMAGES, 100, max([v[0] for v in config.SCALES]), max(v[1] for v in config.SCALES))))
     print 'providing maximum shape', max_data_shape, max_label_shape
 
     # infer shape
@@ -129,6 +132,8 @@ def train_net(args, ctx, pretrained_res, pretrained_vgg, epoch, prefix, begin_ep
         aux_params = dict(aux_params_res, **aux_params_vgg)
 	# print 'arg_params: \n %s' % (str(arg_params))
         sym_instance.init_weight(config, arg_params, aux_params)
+        # init fcn-8s parameters
+        init_fcnxs.init_from_vgg16(ctx, sym, arg_params, aux_params)
 
     # check parameter shapes
     sym_instance.check_parameter_shapes(arg_params, aux_params, data_shape_dict)

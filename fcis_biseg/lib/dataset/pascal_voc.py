@@ -103,6 +103,28 @@ class PascalVOC(IMDB):
             hkl.dump(gt_mask[:, :, ::-1].astype('bool'), gt_mask_flip_file, mode='w', compression='gzip')
         return gt_mask_file
 
+
+    def ss_mask_path_from_index(self, index, ss_mask):
+        """
+        given image index, cache(save) high resolution mask and return full path of masks
+        :param index: index of a specific image
+        :return: full path of this mask
+        """
+        if self.image_set == 'val':
+            return []
+        cache_file = os.path.join(self.cache_path, 'VOCMask')
+        if not os.path.exists(cache_file):
+            os.makedirs(cache_file)
+        # semantic segmentation
+        ss_mask_file = os.path.join(cache_file, index + '_cls.hkl')
+        if not os.path.exists(ss_mask_file):
+            hkl.dump(ss_mask.astype('bool'), ss_mask_file, mode='w', compression='gzip')
+        # cache flip ss_masks
+        ss_mask_flip_file = os.path.join(cache_file, index + '_cls_flip.hkl')
+        if not os.path.exists(ss_mask_flip_file):
+            hkl.dump(ss_mask[:, :, ::-1].astype('bool'), ss_mask_flip_file, mode='w', compression='gzip')
+        return ss_mask_file
+
     def gt_roidb(self):
         """
         return ground truth image regions database
@@ -124,6 +146,8 @@ class PascalVOC(IMDB):
 
     def gt_sdsdb(self):
         """
+        get or create database storing boxes data, image & mask index & size information, 
+        if you want to import another stream, you should delete previous .pkl file first
         :return:
         """
         cache_file = os.path.join(self.cache_path, self.name + '_gt_sdsdb.pkl')
@@ -134,6 +158,7 @@ class PascalVOC(IMDB):
             return sdsdb
         print 'loading sbd mask annotations'
         gt_sdsdb = [self.load_sbd_mask_annotations(index) for index in self.image_set_index]
+        # add 'cache_seg_cls' iterm
         with open(cache_file, 'wb') as fid:
             cPickle.dump(gt_sdsdb, fid, cPickle.HIGHEST_PROTOCOL)
         # for future release usage
@@ -160,7 +185,20 @@ class PascalVOC(IMDB):
         seg_obj_mat = sio.loadmat(seg_obj_name)
         seg_obj_data = seg_obj_mat['GTinst']['Segmentation'][0][0]
 
-        unique_inst = np.unique(seg_obj_data)
+        unique_cls = np.unique(seg_cls_data)    # get unique cls label (defined by color)
+        background_ind = np.where(unique_cls == 0)[0]
+        unique_cls = np.delete(unique_cls, background_ind)
+        border_inds = np.where(unique_cls == 255)[0]
+        unique_cls = np.delete(unique_cls, border_inds)
+        num_cls = len(unique_cls)
+        # boxes = np.zeros((num_cls, 4), dtype=np.uint16)
+        # gt_classes = np.zeros(num_cls, dtype=np.int32)
+        ss_masks = np.zeros((self.num_classes,size[0], size[1]))
+        for idx, cls_id in enumerate(unique_cls):
+            cur_ss_mask = (seg_cls_data == cls_id)
+            ss_masks[idx, :, :] = cur_ss_mask
+            
+        unique_inst = np.unique(seg_obj_data)   # get unique instance label (defined by color)
         background_ind = np.where(unique_inst == 0)[0]
         unique_inst = np.delete(unique_inst, background_ind)
         border_inds = np.where(unique_inst == 255)[0]
@@ -195,6 +233,7 @@ class PascalVOC(IMDB):
             'max_classes': overlaps.argmax(axis=1),
             'max_overlaps': overlaps.max(axis=1),
             'cache_seg_inst': self.mask_path_from_index(index, gt_masks),
+            'cache_seg_cls': self.ss_mask_path_from_index(index, ss_masks), 
             'flipped': False
         })
         return sds_rec
