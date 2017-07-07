@@ -29,7 +29,7 @@ def init_from_vgg16(ctx, fcnxs_symbol, vgg16fc_args, vgg16fc_auxs):
         if(v.context != ctx):
             fcnxs_auxs[k] = mx.nd.zeros(v.shape, ctx)
             v.copyto(fcnxs_auxs[k])
-    data_shape=(1,3,500,500)
+    data_shape=(1,3,600,1000)
     arg_names = fcnxs_symbol.list_arguments()
     arg_shapes, _, _ = fcnxs_symbol.infer_shape(data=data_shape)
     rest_params = dict([(x[0], mx.nd.zeros(x[1], ctx)) for x in zip(arg_names, arg_shapes)

@@ -707,6 +707,7 @@ class resnet_v1_101_fcis(Symbol):
             gt_boxes = mx.sym.Variable(name='gt_boxes')
             gt_masks = mx.sym.Variable(name='gt_masks')
             ss_masks = mx.sym.Variable(name='ss_masks')
+            # ss_masks = mx.sym.Variable(name='fcn-softmax_label')
             rpn_label = mx.sym.Variable(name='proposal_label')
             rpn_bbox_target = mx.sym.Variable(name='proposal_bbox_target')
             rpn_bbox_weight = mx.sym.Variable(name='proposal_bbox_weight')
@@ -888,8 +889,8 @@ class resnet_v1_101_fcis(Symbol):
                                       name='cls_prob_reshape')
             bbox_loss = mx.sym.Reshape(data=bbox_loss, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 4 * num_reg_classes),
                                        name='bbox_loss_reshape')
-            # group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label)])
-            group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, ss_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label)])
+            group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label)])
+            # group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, ss_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label)])
         else:
             cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
             if cfg.TEST.ITER == 2:

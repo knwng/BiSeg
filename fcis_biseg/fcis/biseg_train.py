@@ -93,7 +93,7 @@ def train_net(args, ctx, pretrained_res, pretrained_vgg, epoch, prefix, begin_ep
     max_data_shape.append(('gt_boxes', (config.TRAIN.BATCH_IMAGES, 100, 5)))
     max_data_shape.append(('gt_masks', (config.TRAIN.BATCH_IMAGES, 100, max([v[0] for v in config.SCALES]), max(v[1] for v in config.SCALES))))
     if config.SS:
-        max_data_shape.append(('ss_masks', (config.TRAIN.BATCH_IMAGES, 100, max([v[0] for v in config.SCALES]), max(v[1] for v in config.SCALES))))
+        max_data_shape.append(('ss_masks', (config.TRAIN.BATCH_IMAGES, config.dataset.NUM_CLASSES, max([v[0] for v in config.SCALES]), max(v[1] for v in config.SCALES))))
     print 'providing maximum shape', max_data_shape, max_label_shape
 
     # infer shape
@@ -101,6 +101,7 @@ def train_net(args, ctx, pretrained_res, pretrained_vgg, epoch, prefix, begin_ep
     print 'data shape:'
     pprint.pprint(data_shape_dict)
     sym_instance.infer_shape(data_shape_dict)
+    print 'finish infer shape'
     # inshape, outshape, uaxshape = sym_instance.infer_shape(data_shape_dict)
     # print 'symbol inshape: %s ' % (str(inshape))
     # print 'symbol outshape: %s' % (str(outshape))
@@ -133,10 +134,12 @@ def train_net(args, ctx, pretrained_res, pretrained_vgg, epoch, prefix, begin_ep
 	# print 'arg_params: \n %s' % (str(arg_params))
         sym_instance.init_weight(config, arg_params, aux_params)
         # init fcn-8s parameters
-        init_fcnxs.init_from_vgg16(ctx, sym, arg_params, aux_params)
+        # init_fcnxs.init_from_vgg16(ctx[0], sym, arg_params, aux_params)
+    print 'finish load params'
 
     # check parameter shapes
     sym_instance.check_parameter_shapes(arg_params, aux_params, data_shape_dict)
+    print 'finish check param shapes'
 
     # create solver
     fixed_param_prefix = config.network.FIXED_PARAMS

@@ -11,9 +11,9 @@ import mxnet as mx
 
 from mxnet.executor_manager import _split_input_slice
 from rpn.rpn import get_rpn_testbatch, get_rpn_batch, assign_anchor
-from mask.mask_transform import get_gt_masks
+from mask.mask_transform import get_gt_masks, get_ss_masks
 
-from fcn-loader import FilIter
+# from fcn-loader import FilIter
 
 class AnchorLoader(mx.io.DataIter):
 
@@ -49,7 +49,7 @@ class AnchorLoader(mx.io.DataIter):
             self.data_name = ['data', 'im_info', 'gt_boxes', 'gt_masks']
             # add semantic segmentation mask
             if config.SS:
-                data_name.append('ss_masks')
+                self.data_name.append('ss_masks')
         else:
             self.data_name = ['data']
         self.label_name = ['proposal_label', 'proposal_bbox_target', 'proposal_bbox_weight']
@@ -120,7 +120,7 @@ class AnchorLoader(mx.io.DataIter):
         return self.cur + self.batch_size <= self.size
 
     def next(self):
-        batches = [i.next() for i in self.iters]
+        # batches = [i.next() for i in self.iters]
         if self.iter_next():
             self.get_batch_parallel()
             self.cur += self.batch_size
@@ -213,10 +213,10 @@ class AnchorLoader(mx.io.DataIter):
         gt_masks = get_gt_masks(roidb[0]['cache_seg_inst'], data['im_info'][0,:2].astype('int'))
         data['gt_masks'] = gt_masks
 
-        if config.SS:
+        if self.cfg.SS:
             # add ss_masks to data for e2e
             assert len(roidb) == 1
-            ss_masks = get_ss_masks(roidb[0]['cache_seg_cls'], data['im_info'][0, :2].astype('int'))
+            ss_masks = get_ss_masks(roidb[0]['cache_seg_cls'], data['im_info'][0,:2].astype('int'))
             data['ss_masks'] = ss_masks
 
         # assign anchor for label

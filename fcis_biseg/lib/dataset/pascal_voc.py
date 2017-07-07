@@ -115,6 +115,7 @@ class PascalVOC(IMDB):
         cache_file = os.path.join(self.cache_path, 'VOCMask')
         if not os.path.exists(cache_file):
             os.makedirs(cache_file)
+	ss_mask = np.expand_dims(ss_mask, 0)
         # semantic segmentation
         ss_mask_file = os.path.join(cache_file, index + '_cls.hkl')
         if not os.path.exists(ss_mask_file):
@@ -122,7 +123,7 @@ class PascalVOC(IMDB):
         # cache flip ss_masks
         ss_mask_flip_file = os.path.join(cache_file, index + '_cls_flip.hkl')
         if not os.path.exists(ss_mask_flip_file):
-            hkl.dump(ss_mask[:, :, ::-1].astype('bool'), ss_mask_flip_file, mode='w', compression='gzip')
+            hkl.dump(ss_mask[:, :, :, ::-1].astype('bool'), ss_mask_flip_file, mode='w', compression='gzip')
         return ss_mask_file
 
     def gt_roidb(self):

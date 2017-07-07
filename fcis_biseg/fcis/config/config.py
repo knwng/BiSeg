@@ -42,6 +42,7 @@ config.dataset.root_path = './data'
 config.dataset.dataset_path = './data/VOCdevkit'
 config.dataset.NUM_CLASSES = 21
 
+config.SS = True
 # Training configurations
 config.TRAIN = edict()
 

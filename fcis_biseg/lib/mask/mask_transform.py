@@ -38,10 +38,10 @@ def get_ss_masks(ss_mask_file, size):
     """
     assert os.path.exists(ss_mask_file), '%s does not exist'.format(ss_mask_file)
     ss_masks = hkl.load(ss_mask_file)
-    num_mask = ss_masks.shape[0]
-    processed_masks = np.zeros((num_mask, size[0], size[1]))
+    num_mask = ss_masks.shape[1]
+    processed_masks = np.zeros((1, num_mask, size[0], size[1]))
     for i in range(num_mask):
-        processed_masks[i,:,:] = cv2.resize(ss_masks[i].astype('float'), (size[1], size[0]))
+        processed_masks[0,i,:,:] = cv2.resize(ss_masks[0][i].astype('float'), (size[1], size[0]))
     return processed_masks
 
 
