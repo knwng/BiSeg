@@ -102,8 +102,15 @@ ENV/
 
 # data
 fcis_biseg/model/pretrained_model/*
+fcis_biseg/data/*
+fcis_biseg/data.bak/*
+
+# data cache
+*.hkl
+*.pkl
 # log
 fcis_biseg/output/*
 
 # vim cache
 *.swp
+
