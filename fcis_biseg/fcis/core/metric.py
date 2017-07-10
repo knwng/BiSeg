@@ -100,27 +100,18 @@ class FCISAccMetric(mx.metric.EvalMetric):
         self.cfg = cfg
 
     def update(self, labels, preds):
-	# print 'preds shape: ', len(preds)
-	# print 'preds[0] shape: ', preds[0].shape
         pred = preds[self.pred.index('rcnn_cls_prob')]
-	# print 'pred shape: ', pred.shape
         if self.e2e:
             label = preds[self.pred.index('rcnn_label')]
         else:
             label = labels[self.label.index('rcnn_label')]
-	# print 'label shape: ', label.shape
 
         last_dim = pred.shape[-1]
-	# print 'last_dim: ', last_dim
         pred_label = pred.asnumpy().reshape(-1, last_dim).argmax(axis=1).astype('int32')
         label = label.asnumpy().reshape(-1,).astype('int32')
 
         # filter with keep_inds
         keep_inds = np.where(label != -1)
-	# print 'pred shape: ', pred.shape
-	# print 'label: ', label.shape
-	# print 'pred_label: ', pred_label.shape
-	# print 'keep_inds', keep_inds
 	
         pred_label = pred_label[keep_inds]
         label = label[keep_inds]

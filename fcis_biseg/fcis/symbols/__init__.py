@@ -1,2 +1,2 @@
-from resnet_v1_101_fcis import *
+from resnet_v1_101_biseg import *
 

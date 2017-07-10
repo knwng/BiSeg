@@ -213,11 +213,11 @@ class AnchorLoader(mx.io.DataIter):
         gt_masks = get_gt_masks(roidb[0]['cache_seg_inst'], data['im_info'][0,:2].astype('int'))
         data['gt_masks'] = gt_masks
 
-        if self.cfg.SS:
-            # add ss_masks to data for e2e
-            assert len(roidb) == 1
-            ss_masks = get_ss_masks(roidb[0]['cache_seg_cls'], data['im_info'][0,:2].astype('int'))
-            data['ss_masks'] = ss_masks
+        # if self.cfg.SS:
+        # add ss_masks to data for e2e
+        assert len(roidb) == 1
+        ss_masks = get_ss_masks(roidb[0]['cache_seg_cls'], data['im_info'][0,:2].astype('int'))
+        data['ss_masks'] = ss_masks
 
         # assign anchor for label
         label = assign_anchor(feat_shape, label['gt_boxes'], data['im_info'], self.cfg,

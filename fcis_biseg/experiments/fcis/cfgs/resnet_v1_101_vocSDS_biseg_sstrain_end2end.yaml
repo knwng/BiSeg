@@ -1,8 +1,9 @@
 ---
 MXNET_VERSION: "mxnet-origin"
+# MXNET_VERSION: "mxnet"
 output_path: "./output/fcis/voc"
-symbol: resnet_v1_101_fcis 
-gpus: '0,3'
+symbol: 'resnet_v1_101_biseg' 
+gpus: "3" 
 # gpus: "2,3"
 CLASS_AGNOSTIC: true
 SCALES:
@@ -15,8 +16,8 @@ default:
   kvstore: device
 network:
   pretrained_res: "./model/pretrained_model/resnet_v1_101"
-  # pretrained_vgg: "./model/pretrained_model/vgg_16"
-  pretrained_vgg: "./model/pretrained_model/FCN8s_VGG16"
+  pretrained_vgg: "./model/pretrained_model/vgg_16"
+  # pretrained_vgg: "./model/pretrained_model/FCN8s_VGG16"
   pretrained_epoch: 0
   PIXEL_MEANS:
   - 103.06

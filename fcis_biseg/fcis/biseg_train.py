@@ -1,4 +1,4 @@
-# --------------------------------------------------------
+# -------------------------------------------------------
 # Fully Convolutional Instance-aware Semantic Segmentation
 # Copyright (c) 2016 by Contributors
 # Copyright (c) 2017 Microsoft
@@ -58,9 +58,12 @@ def train_net(args, ctx, pretrained_res, pretrained_vgg, epoch, prefix, begin_ep
     prefix = os.path.join(final_output_path, prefix)
 
     # load symbol
+    print 'load symbol from: ', os.path.join(curr_path, 'symbols', config.symbol + '.py')
     shutil.copy2(os.path.join(curr_path, 'symbols', config.symbol + '.py'), final_output_path)
     sym_instance = eval(config.symbol)()
     sym = sym_instance.get_symbol(config, is_train=True)
+    print 'ss_masks' in sym.list_arguments()
+    print 'gt_masks' in sym.list_arguments()
     feat_sym = sym.get_internals()['rpn_cls_score_output']
 
     # setup multi-gpu
@@ -92,14 +95,16 @@ def train_net(args, ctx, pretrained_res, pretrained_vgg, epoch, prefix, begin_ep
     max_data_shape, max_label_shape = train_data.infer_shape(max_data_shape)
     max_data_shape.append(('gt_boxes', (config.TRAIN.BATCH_IMAGES, 100, 5)))
     max_data_shape.append(('gt_masks', (config.TRAIN.BATCH_IMAGES, 100, max([v[0] for v in config.SCALES]), max(v[1] for v in config.SCALES))))
-    if config.SS:
-        max_data_shape.append(('ss_masks', (config.TRAIN.BATCH_IMAGES, config.dataset.NUM_CLASSES, max([v[0] for v in config.SCALES]), max(v[1] for v in config.SCALES))))
+    # if config.SS:
+    #     max_data_shape.append(('ss_masks', (config.TRAIN.BATCH_IMAGES, config.dataset.NUM_CLASSES, max([v[0] for v in config.SCALES]), max(v[1] for v in config.SCALES))))
+    max_data_shape.append(('ss_masks', (config.TRAIN.BATCH_IMAGES, config.dataset.NUM_CLASSES, max([v[0] for v in config.SCALES]), max(v[1] for v in config.SCALES))))
     print 'providing maximum shape', max_data_shape, max_label_shape
 
     # infer shape
     data_shape_dict = dict(train_data.provide_data_single + train_data.provide_label_single)
     print 'data shape:'
     pprint.pprint(data_shape_dict)
+    print 'ss_masks' in data_shape_dict
     sym_instance.infer_shape(data_shape_dict)
     print 'finish infer shape'
     # inshape, outshape, uaxshape = sym_instance.infer_shape(data_shape_dict)
