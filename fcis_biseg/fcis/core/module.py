@@ -26,6 +26,9 @@ from .DataParallelExecutorGroup import DataParallelExecutorGroup
 from mxnet import ndarray as nd
 from mxnet import optimizer as opt
 
+import matplotlib.pyplot as plt
+from scipy import misc
+
 
 class Module(BaseModule):
     """Module is a basic module that wrap a `Symbol`. It is functionally the same
@@ -743,8 +746,11 @@ class MutableModule(BaseModule):
             for name in self._symbol.list_arguments():
                 for prefix in self._fixed_param_prefix:
                     if name.startswith(prefix):
+			if name.startswith('conv1_1') or name.startswith('conv1_2'):
+			    continue
                         fixed_param_names.append(name)
         self._fixed_param_names = fixed_param_names
+	print 'fixed_param_names: ', fixed_param_names
         self._preload_opt_states = None
 
     def _reset_bind(self):
@@ -1027,6 +1033,27 @@ class MutableModule(BaseModule):
             self._curr_module = module
 
         self._curr_module.forward(data_batch, is_train=is_train)
+	# print 'get : ', self._curr_module.get_outputs()[-1].asnumpy()
+	# print 'get params: ', 'conv1_bias' in self._curr_module.get_params()[0]
+	# print 'get params: ', 'conv1_1_bias' in self._curr_module.get_params()[0]
+	# print 'get params of FCN weight: ', self._curr_module.get_params()[0]['conv1_1_weight'].asnumpy().mean()
+	# print 'get params of FCN bias: ', self._curr_module.get_params()[0]['conv1_1_bias'].asnumpy().mean()
+	# print 'get params of FCIS weight: ', self._curr_module.get_params()[0]['conv1_weight'].asnumpy().mean()
+	# print 'get params of FCIS bias: ', self._curr_module.get_params()[0]['conv1_bias'].asnumpy().mean()
+	# print 'get seg_prob outputs: ', self._curr_module.get_outputs()[-7].asnumpy().mean()
+	# print 'get seg_targets outputs: ', self._curr_module.get_outputs()[-6].asnumpy().mean()
+	# print 'get fcn outputs: ', self._curr_module.get_outputs()[-4].asnumpy().mean()
+	# print 'get seg outputs: ', self._curr_module.get_outputs()[-3].asnumpy().mean()
+	# print 'get outputs after inference: ', self._curr_module.get_outputs()[-2].asnumpy().mean()
+	'''
+	ss_masks = self._curr_module.get_outputs()[-1].asnumpy()
+	for i in range(21):
+		print 'save ss_masks ' + str(i)
+		misc.imsave('ss_masks_' + str(i) + '.png', ss_masks[0][i])
+	print 'get output_names: ', self._curr_module.output_names
+	print 'get output_shapes: ', self._curr_module.output_shapes
+	'''
+
 
     def backward(self, out_grads=None):
         assert self.binded and self.params_initialized

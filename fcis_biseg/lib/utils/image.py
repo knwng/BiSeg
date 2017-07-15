@@ -117,7 +117,7 @@ def transform(im, pixel_means):
     :param pixel_means: [B, G, R pixel means]
     :return: [batch, channel, height, width]
     """
-    im_tensor = np.zeros((1, 3, im.shape[0], im.shape[1]))
+    im_tensor = np.zeros((1, 3, im.shape[0], im.shape[1]), np.float64)
     for i in range(3):
         im_tensor[0, i, :, :] = im[:, :, 2 - i] - pixel_means[2 - i]
     return im_tensor

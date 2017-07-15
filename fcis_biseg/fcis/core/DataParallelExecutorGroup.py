@@ -364,18 +364,18 @@ class DataParallelExecutorGroup(object):
         for exec_ in self.execs:
             exec_.forward(is_train=is_train)
 
-    # def get_output_shapes(self):
-    #     """Get the shapes of the outputs."""
-    #     outputs = self.execs[0].outputs
-    #     shapes = [out.shape for out in outputs]
-    #
-    #     concat_shapes = []
-    #     for key, the_shape, axis in zip(self.symbol.list_outputs(), shapes, self.output_layouts):
-    #         the_shape = list(the_shape)
-    #         if axis >= 0:
-    #             the_shape[axis] = self.batch_size
-    #         concat_shapes.append((key, tuple(the_shape)))
-    #     return concat_shapes
+    def get_output_shapes(self):
+        """Get the shapes of the outputs."""
+        outputs = self.execs[0].outputs
+        shapes = [out.shape for out in outputs]
+   
+        concat_shapes = []
+        for key, the_shape, axis in zip(self.symbol.list_outputs(), shapes, self.output_layouts):
+            the_shape = list(the_shape)
+            if axis >= 0:
+                the_shape[axis] = self.batch_size
+            concat_shapes.append((key, tuple(the_shape)))
+        return concat_shapes
 
     def get_outputs(self, merge_multi_context=True):
         """Get outputs of the previous forward computation.

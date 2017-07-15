@@ -23,6 +23,9 @@ def get_rcnn_names(cfg):
         pred.append('rcnn_label')
         rpn_pred, rpn_label = get_rpn_names()
         pred = rpn_pred + pred
+	if cfg.SS:
+	    pred.append('ss_preds')
+	    pred.append('ss_masks')
         label = rpn_label
     return pred, label
 
@@ -112,7 +115,6 @@ class FCISAccMetric(mx.metric.EvalMetric):
 
         # filter with keep_inds
         keep_inds = np.where(label != -1)
-	
         pred_label = pred_label[keep_inds]
         label = label[keep_inds]
 
@@ -225,3 +227,32 @@ class FCISMaskLossMetric(mx.metric.EvalMetric):
 
         self.sum_metric += cls_loss
         self.num_inst += len(keep_inds)
+
+class FCNAccMetric(mx.metric.EvalMetric):
+    def __init__(self, cfg):
+	super(FCNAccMetric, self).__init__('FCNAcc')
+	self.e2e = cfg.TRAIN.END2END
+	self.pred, self.label = get_rcnn_names(cfg)
+	self.cfg = cfg
+
+    def update(self, labels, preds):
+	masks = preds[self.pred.index('ss_preds')]
+	if self.e2e:
+	    label = preds[self.pred.index('ss_masks')]
+	else:
+	    raise NotImplementedError
+	# print 'label_shape origin: ', label.asnumpy().shape
+	masks = mx.nd.array(masks.reshape((masks.shape[0], masks.shape[1], masks.shape[2] * masks.shape[3])))
+	# label = label[0]
+	label = mx.nd.array(label.reshape((label.shape[0], label.shape[1], label.shape[2] * label.shape[3])))
+	# print 'masks_shape: ', masks.asnumpy().shape
+	# print 'label_shape: ', label.asnumpy().shape
+	
+	met = mx.metric.Accuracy()
+	met.update(labels=[label], preds=[masks])
+	# print 'metric get: ', met.get()
+	# print 'acc metric num_inst: ', met.num_inst
+	# self.sum_metric = met.get()[1]
+	self.sum_metric += met.sum_metric
+	# self.num_inst = self.cfg.dataset.NUM_CLASSES
+	self.num_inst += met.num_inst

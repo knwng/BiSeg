@@ -46,6 +46,7 @@ def get_rpn_batch(roidb, cfg):
     imgs, roidb = get_image(roidb, cfg)
     im_array = imgs[0]
     im_info = np.array([roidb[0]['im_info']], dtype=np.float32)
+    # im_ss = im_array / max(im_array.max(), abs(im_array.min()))
 
     # gt boxes: (x1, y1, x2, y2, cls)
     if roidb[0]['gt_classes'].size > 0:
@@ -57,6 +58,7 @@ def get_rpn_batch(roidb, cfg):
         gt_boxes = np.empty((0, 5), dtype=np.float32)
 
     data = {'data': im_array,
+	    # 'data_ss': im_ss, 
             'im_info': im_info}
     label = {'gt_boxes': gt_boxes}
 

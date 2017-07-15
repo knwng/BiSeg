@@ -123,6 +123,7 @@ class PascalVOC(IMDB):
         # cache flip ss_masks
         ss_mask_flip_file = os.path.join(cache_file, index + '_cls_flip.hkl')
         if not os.path.exists(ss_mask_flip_file):
+            # hkl.dump(ss_mask[:, :, ::-1].astype('bool'), ss_mask_flip_file, mode='w', compression='gzip')
             hkl.dump(ss_mask[:, :, :, ::-1].astype('bool'), ss_mask_flip_file, mode='w', compression='gzip')
         return ss_mask_file
 
@@ -198,7 +199,7 @@ class PascalVOC(IMDB):
         for idx, cls_id in enumerate(unique_cls):
             cur_ss_mask = (seg_cls_data == cls_id)
             ss_masks[idx, :, :] = cur_ss_mask
-            
+	# ss_masks = seg_obj_data
         unique_inst = np.unique(seg_obj_data)   # get unique instance label (defined by color)
         background_ind = np.where(unique_inst == 0)[0]
         unique_inst = np.delete(unique_inst, background_ind)

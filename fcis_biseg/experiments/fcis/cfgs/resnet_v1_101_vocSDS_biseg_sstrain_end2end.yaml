@@ -2,8 +2,8 @@
 MXNET_VERSION: "mxnet-origin"
 # MXNET_VERSION: "mxnet"
 output_path: "./output/fcis/voc"
-symbol: 'resnet_v1_101_biseg' 
-gpus: "3" 
+symbol: resnet_v1_101_fcis_biseg
+gpus: "0,1" 
 # gpus: "2,3"
 CLASS_AGNOSTIC: true
 SCALES:
@@ -12,6 +12,7 @@ SCALES:
 MASK_SIZE: 21
 BINARY_THRESH: 0.4
 default:
+  # frequent: 1 
   frequent: 100
   kvstore: device
 network:
@@ -29,13 +30,13 @@ network:
   FIXED_PARAMS:
   - conv1
   - bn_conv1
-  - conv2
-  - conv3
-  - conv4
-  - conv5
-  - fc6
-  - fc7
-  - fc8
+  # - conv2
+  # - conv3
+  # - conv4
+  # - conv5
+  # - fc6
+  # - fc7
+  # - fc8
   - res2
   - bn2
   - gamma

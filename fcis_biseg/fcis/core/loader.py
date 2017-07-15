@@ -50,8 +50,11 @@ class AnchorLoader(mx.io.DataIter):
             # add semantic segmentation mask
             if config.SS:
                 self.data_name.append('ss_masks')
+		# self.data_name.append('data_ss')
         else:
             self.data_name = ['data']
+	    # if config.SS:
+		# self.data_name.append('data_ss')
         self.label_name = ['proposal_label', 'proposal_bbox_target', 'proposal_bbox_weight']
 
         # status variable for synchronization between get_data and get_label
@@ -61,6 +64,7 @@ class AnchorLoader(mx.io.DataIter):
         self.label = None
 
         # get first batch to fill in provide_data and provide_label
+	print 'finish Loader params defination'
         self.reset()
         self.get_batch_parallel()
 
@@ -88,33 +92,29 @@ class AnchorLoader(mx.io.DataIter):
 
     @property
     def provide_data(self):
-        data_tmp = [[(k, v.shape) for k, v in zip(self.data_name, self.data[i])] for i in xrange(len(self.data))]
+        return [[(k, v.shape) for k, v in zip(self.data_name, self.data[i])] for i in xrange(len(self.data))]
         # data for fcn is input image, while label is masks
         # for i in self.iters:
         #     data_tmp.append(*i.provide_label)
-        return data_tmp
 
     @property
     def provide_label(self):
-        data_tmp = [[(k, v.shape) for k, v in zip(self.label_name, self.label[i])] for i in xrange(len(self.label))]
+        return [[(k, v.shape) for k, v in zip(self.label_name, self.label[i])] for i in xrange(len(self.label))]
         # for i in self.iters:
         #     data_tmp.append(*i.provide_label)
-        return data_tmp
 
     @property
     def provide_data_single(self):
-        data_tmp = [(k, v.shape) for k, v in zip(self.data_name, self.data[0])]
+        return [(k, v.shape) for k, v in zip(self.data_name, self.data[0])]
         # data for fcn is input image, while label is masks
         # for i in self.iters:
         #     data_tmp.append(*i.provide_label_single)
-        return data_tmp 
 
     @property
     def provide_label_single(self):
-        data_tmp = [(k, v.shape) for k, v in zip(self.label_name, self.label[0])]
+        return [(k, v.shape) for k, v in zip(self.label_name, self.label[0])]
         # for i in self.iters:
         #     data_tmp.append(*i.provide_label_single)
-        return data_tmp
 
     def iter_next(self):
         return self.cur + self.batch_size <= self.size
@@ -185,12 +185,13 @@ class AnchorLoader(mx.io.DataIter):
 
         data = []
         label = []
+	# print 'start parfetch'
 
         for roidb in iroidb:
             rst = self.parfetch(roidb)
             data.append([mx.nd.array(rst['data'][key]) for key in self.data_name])
             label.append([mx.nd.array(rst['label'][key]) for key in self.label_name])
-
+	# print 'finish parfetch'
         self.data = data
         self.label = label
 
@@ -201,9 +202,9 @@ class AnchorLoader(mx.io.DataIter):
         data_shape = {k: v.shape for k, v in data.items()}
         # not use im info for RPN training
         del data_shape['im_info']
+	# print 'feat_sym in Loader: ', self.feat_sym.get_internals()
         _, feat_shape, _ = self.feat_sym.infer_shape(**data_shape)
         feat_shape = [int(i) for i in feat_shape[0]]
-
         # add gt_boxes to data for e2e
         data['gt_boxes'] = label['gt_boxes'][np.newaxis, :, :]
 
@@ -251,6 +252,8 @@ class TestLoader(mx.io.DataIter):
         # decide data and label names (only for testing)
         if has_rpn:
             self.data_name = ['data', 'im_info']
+	    # if config.SS:
+		# self.data_name.append('data_ss')
         else:
             raise NotImplementedError
 

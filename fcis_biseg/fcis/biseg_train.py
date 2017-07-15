@@ -58,12 +58,10 @@ def train_net(args, ctx, pretrained_res, pretrained_vgg, epoch, prefix, begin_ep
     prefix = os.path.join(final_output_path, prefix)
 
     # load symbol
-    print 'load symbol from: ', os.path.join(curr_path, 'symbols', config.symbol + '.py')
+    # print 'load symbol from: ', os.path.join(curr_path, 'symbols', config.symbol + '.py')
     shutil.copy2(os.path.join(curr_path, 'symbols', config.symbol + '.py'), final_output_path)
     sym_instance = eval(config.symbol)()
     sym = sym_instance.get_symbol(config, is_train=True)
-    print 'ss_masks' in sym.list_arguments()
-    print 'gt_masks' in sym.list_arguments()
     feat_sym = sym.get_internals()['rpn_cls_score_output']
 
     # setup multi-gpu
@@ -92,21 +90,22 @@ def train_net(args, ctx, pretrained_res, pretrained_vgg, epoch, prefix, begin_ep
     # infer max shape
     max_data_shape = [('data', (config.TRAIN.BATCH_IMAGES, 3,
                                 max([v[0] for v in config.SCALES]), max(v[1] for v in config.SCALES)))]
+    # max_data_shape.append('data_ss', (config.TRAIN.BATCH_IMAGES, 3,
+    #                             max([v[0] for v in config.SCALES]), max(v[1] for v in config.SCALES)))
     max_data_shape, max_label_shape = train_data.infer_shape(max_data_shape)
     max_data_shape.append(('gt_boxes', (config.TRAIN.BATCH_IMAGES, 100, 5)))
     max_data_shape.append(('gt_masks', (config.TRAIN.BATCH_IMAGES, 100, max([v[0] for v in config.SCALES]), max(v[1] for v in config.SCALES))))
-    # if config.SS:
-    #     max_data_shape.append(('ss_masks', (config.TRAIN.BATCH_IMAGES, config.dataset.NUM_CLASSES, max([v[0] for v in config.SCALES]), max(v[1] for v in config.SCALES))))
     max_data_shape.append(('ss_masks', (config.TRAIN.BATCH_IMAGES, config.dataset.NUM_CLASSES, max([v[0] for v in config.SCALES]), max(v[1] for v in config.SCALES))))
+    # max_data_shape.append(('ss_masks', (config.TRAIN.BATCH_IMAGES, max([v[0] for v in config.SCALES]), max(v[1] for v in config.SCALES))))
     print 'providing maximum shape', max_data_shape, max_label_shape
 
     # infer shape
     data_shape_dict = dict(train_data.provide_data_single + train_data.provide_label_single)
-    print 'data shape:'
+    # print 'data shape:'
     pprint.pprint(data_shape_dict)
-    print 'ss_masks' in data_shape_dict
+    # print 'ss_masks' in data_shape_dict
     sym_instance.infer_shape(data_shape_dict)
-    print 'finish infer shape'
+    # print 'finish infer shape'
     # inshape, outshape, uaxshape = sym_instance.infer_shape(data_shape_dict)
     # print 'symbol inshape: %s ' % (str(inshape))
     # print 'symbol outshape: %s' % (str(outshape))
@@ -128,23 +127,21 @@ def train_net(args, ctx, pretrained_res, pretrained_vgg, epoch, prefix, begin_ep
         # load vgg-16 & resnet-101 parameters
 	# pretrained_res = pretrained
 	# pretrained_vgg = './model/pretrained_model/VGG_FC_ILSVRC_16'
+	'''
         arg_params_res, aux_params_res = load_param(pretrained_res, epoch, convert=True)
         arg_params_vgg, aux_params_vgg = load_param(pretrained_vgg, epoch, convert=True)
-	# print 'params of resnet-101'
-	# print arg_params_res
-	# print 'params of vgg-16'
-	# print arg_params_vgg
         arg_params = dict(arg_params_res, **arg_params_vgg)
         aux_params = dict(aux_params_res, **aux_params_vgg)
-	# print 'arg_params: \n %s' % (str(arg_params))
+	'''
+	arg_params, aux_params = load_param(pretrained_res, epoch, convert=True)
         sym_instance.init_weight(config, arg_params, aux_params)
         # init fcn-8s parameters
         # init_fcnxs.init_from_vgg16(ctx[0], sym, arg_params, aux_params)
-    print 'finish load params'
+    # print 'finish load params'
 
     # check parameter shapes
     sym_instance.check_parameter_shapes(arg_params, aux_params, data_shape_dict)
-    print 'finish check param shapes'
+    # print 'finish check param shapes'
 
     # create solver
     fixed_param_prefix = config.network.FIXED_PARAMS
@@ -166,12 +163,13 @@ def train_net(args, ctx, pretrained_res, pretrained_vgg, epoch, prefix, begin_ep
     fcis_cls_loss = metric.FCISLogLossMetric(config)
     fcis_bbox_loss = metric.FCISL1LossMetric(config)
     fcis_mask_loss = metric.FCISMaskLossMetric(config)
+    fcn_acc = metric.FCNAccMetric(config)
 
     eval_metrics = mx.metric.CompositeEvalMetric()
     # accumulate all loss, fcn-8s loss should be added here
     for child_metric in [rpn_acc, rpn_cls_loss, rpn_bbox_loss,
-                         # fcis_acc_fg, fcis_cls_loss, fcis_bbox_loss, fcis_mask_loss]:
-                         fcis_acc, fcis_acc_fg, fcis_cls_loss, fcis_bbox_loss, fcis_mask_loss]:
+                         # fcis_acc, fcis_acc_fg, fcis_cls_loss, fcis_bbox_loss, fcis_mask_loss]:
+                         fcis_acc, fcis_acc_fg, fcis_cls_loss, fcis_bbox_loss, fcis_mask_loss, fcn_acc]:
         eval_metrics.add(child_metric)
 
     batch_end_callback = callback.Speedometer(train_data.batch_size, frequent=args.frequent)
