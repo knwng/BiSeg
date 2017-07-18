@@ -163,7 +163,8 @@ def get_fcn16s_symbol(numclass=21, workspace_default=1024):
                  workspace=workspace_default, name="score_pool4")
     score_pool4c = mx.symbol.Crop(*[score_pool4, score2], offset=offset()["score_pool4c"], name="score_pool4c")
     score_fused = score2 + score_pool4c
-    softmax = fcnxs_score(score_fused, data, offset()["fcn16s_upscore"], (32, 32), (16, 16), numclass, workspace_default)
+    softmax = mx.symbol.SoftmaxOutput(data=score_fused, multi_output=True, use_ignore=True, ignore_label=255, name="fcn-softmax")
+    # softmax = fcnxs_score(score_fused, data, offset()["fcn16s_upscore"], (32, 32), (16, 16), numclass, workspace_default)
     return softmax
 
 def get_fcn8s_symbol(data, numclass=21, workspace_default=1024):
@@ -181,17 +182,17 @@ def get_fcn8s_symbol(data, numclass=21, workspace_default=1024):
     score_pool4c = mx.symbol.Crop(*[score_pool4, score2], offset=offset()["score_pool4c"], name="score_pool4c")
     score_fused = score2 + score_pool4c
     # score 4X
-    score4 = mx.symbol.Deconvolution(data=score_fused, kernel=(4, 4), stride=(2, 2),num_filter=numclass,
-                adj=(1, 1), workspace=workspace_default, name="score4") # 4X
-    score_pool3 = mx.symbol.Convolution(data=pool3, kernel=(1, 1), num_filter=numclass,
-                workspace=workspace_default, name="score_pool3")
-    score_pool3c = mx.symbol.Crop(*[score_pool3, score4], offset=offset()["score_pool3c"], name="score_pool3c")
-    score_final = score4 + score_pool3c
+    # score4 = mx.symbol.Deconvolution(data=score_fused, kernel=(4, 4), stride=(2, 2),num_filter=numclass,
+    #             adj=(1, 1), workspace=workspace_default, name="score4") # 4X
+    # score_pool3 = mx.symbol.Convolution(data=pool3, kernel=(1, 1), num_filter=numclass,
+    #             workspace=workspace_default, name="score_pool3")
+    # score_pool3c = mx.symbol.Crop(*[score_pool3, score4], offset=offset()["score_pool3c"], name="score_pool3c")
+    # score_final = score4 + score_pool3c
     # softmax = fcnxs_score(score_final, data, offset()["fcn8s_upscore"], (16, 16), (8, 8), numclass, workspace_default)
-    bigscore = mx.symbol.Deconvolution(data=score_final, kernel=(16, 16), stride=(8, 8), adj=(7, 7), 
-               num_filter=numclass, workspace=workspace_default, name="bigscore")
-    upscore = mx.symbol.Crop(*[bigscore, data], offset=offset()["fcn8s_upscore"], name="upscore")
-    softmax = mx.symbol.softmax(data=upscore, name="softmax")
+    # bigscore = mx.symbol.Deconvolution(data=score_final, kernel=(16, 16), stride=(8, 8), adj=(7, 7), 
+    #            num_filter=numclass, workspace=workspace_default, name="bigscore")
+    # upscore = mx.symbol.Crop(*[bigscore, data], offset=offset()["fcn8s_upscore"], name="upscore")
+    softmax = mx.symbol.softmax(data=score_fused, axis=1, name="softmax")
     # just return softmax score map, loss will be defined later in biseg.py
     # output shape is [batch_size, numclass, height, width]
     return softmax

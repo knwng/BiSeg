@@ -717,7 +717,7 @@ class resnet_v1_101_fcis(Symbol):
 	
         # semantic segmentation using fcn-8s
         fcnx = symbol_fcnxs.get_fcn8s_symbol(data, numclass=num_classes, workspace_default=1536)
-	fcnx = mx.sym.Pooling(data=fcnx, kernel=(16, 16), pool_type='max', stride=(16, 16), name='fcn_pool')
+	# fcnx = mx.sym.Pooling(data=fcnx, kernel=(16, 16), pool_type='max', stride=(16, 16), name='fcn_pool')
         # shared convolutional layers
         conv_feat = self.get_resnet_v1_conv4(data)
         # res5
@@ -901,9 +901,9 @@ class resnet_v1_101_fcis(Symbol):
                 psroipool_cls_seg_iter2_0 = mx.contrib.sym.PSROIPooling(name='psroipool_cls_seg_0', data=fcis_cls_seg, rois=rois_iter2,
                                                                 group_size=7, pooled_size=21,
                                                                 output_dim=num_classes*2, spatial_scale=0.0625)
-                cls_seg_split_iter2 = mx.sym.split(name='cls_seg_split', data=psroipool_cls_seg_iter2_0, axis=3, num_outputs=2)
+                cls_seg_split_iter2 = mx.sym.split(name='cls_seg_split', data=psroipool_cls_seg_iter2_0, axis=1, num_outputs=2)
                 posterior_iter2 = fcnx * cls_seg_split_iter2[0]
-                psroipool_cls_seg_iter2 = mx.sym.concat(posterior_iter2, cls_seg_split_iter2[1], dim=3, name='psroipool_cls_seg') 
+                psroipool_cls_seg_iter2 = mx.sym.concat(posterior_iter2, cls_seg_split_iter2[1], dim=1, name='psroipool_cls_seg') 
                 psroipool_bbox_pred_iter2 = mx.contrib.sym.PSROIPooling(name='psroipool_bbox', data=fcis_bbox, rois=rois_iter2,
                                                                 group_size=7, pooled_size=21,
                                                                 output_dim=num_reg_classes*4, spatial_scale=0.0625)
