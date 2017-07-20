@@ -60,7 +60,7 @@ class resnet_v1_101_fcis_biseg(Symbol):
         # res5
         # relu1 = get_resnet_v1_conv5(conv_feat)
         relu1 = get_resnet_v1_conv5(conv_feat, eps=self.eps)
-
+	'''
         # semantic segmentation using fcn-8s
 	if is_train:
        		fcnx_1 = symbol_fcnxs.get_fcn32s_symbol(data=relu1, data_ori=data,  
@@ -68,6 +68,7 @@ class resnet_v1_101_fcis_biseg(Symbol):
 	else:
 		fcnx_1 = symbol_fcnxs.get_fcn32s_symbol(data=relu1, data_ori=data, numclass=num_classes, workspace_default=3072)
 	fcnx = fcnx_1
+	'''
 
         # Add RPN from conv4
         rpn_cls_score, rpn_bbox_pred = get_rpn(conv_feat, num_anchors)
@@ -148,12 +149,21 @@ class resnet_v1_101_fcis_biseg(Symbol):
         else:
             conv_new_1 = mx.sym.Convolution(data=relu1, kernel=(1, 1), num_filter=1024, name='conv_new_1')
         relu_new_1 = mx.sym.Activation(data=conv_new_1, act_type='relu', name='relu_new_1')
+	'''
+        # semantic segmentation using fcn-8s
+	if is_train:
+       		fcnx_1 = symbol_fcnxs.get_fcn32s_symbol(data=relu_new_1, data_ori=data,  
+			masks=ss_masks, numclass=num_classes, workspace_default=3072) # 1536
+	else:
+		fcnx_1 = symbol_fcnxs.get_fcn32s_symbol(data=relu_new_1, data_ori=data, numclass=num_classes, workspace_default=3072)
+	fcnx = fcnx_1
+	'''
         # 7 represent the size of regular grid
         fcis_cls_seg = mx.sym.Convolution(data=relu_new_1, kernel=(1, 1), num_filter=7*7*num_classes*2,
                                           name='fcis_cls_seg')
         fcis_bbox = mx.sym.Convolution(data=relu_new_1, kernel=(1, 1), num_filter=7*7*4*num_reg_classes,
                                        name='fcis_bbox')
-	fcnx = mx.sym.ROIPooling(data=fcnx, rois=rois, pooled_size=(21, 21), spatial_scale=0.0625, name='roipool_fcn')
+	fcnx = mx.sym.ROIPooling(data=relu_new_1, rois=rois, pooled_size=(21, 21), spatial_scale=0.0625, name='roipool_fcn')
         psroipool_cls_seg_0 = mx.contrib.sym.PSROIPooling(name='psroipool_cls_seg_0', data=fcis_cls_seg, rois=rois,
                                                         group_size=7, pooled_size=21, output_dim=num_classes*2, spatial_scale=0.0625)
         cls_seg_split = mx.sym.split(name='cls_seg_split', data=psroipool_cls_seg_0, axis=1, num_outputs=2)
@@ -223,6 +233,7 @@ class resnet_v1_101_fcis_biseg(Symbol):
             bbox_loss = mx.sym.Reshape(data=bbox_loss, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 4 * num_reg_classes),
                                        name='bbox_loss_reshape')
             # group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label)])
+            # group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label), fcnx_1, mx.sym.BlockGrad(ss_masks)])
             group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label), fcnx_1, mx.sym.BlockGrad(ss_masks)])
         else:
             cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)

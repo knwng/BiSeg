@@ -1,8 +1,8 @@
 ---
-MXNET_VERSION: "mxnet"
+MXNET_VERSION: "mxnet-origin"
 output_path: "./output/fcis/coco"
-symbol: resnet_v1_101_fcis
-gpus: '0,1,2,3,4,5,6,7'
+symbol: resnet_v1_101_fcis_biseg
+gpus: '3'
 CLASS_AGNOSTIC: true
 SCALES:
 - 600
@@ -13,7 +13,9 @@ default:
   frequent: 100
   kvstore: device
 network:
-  pretrained: "./model/pretrained_model/resnet_v1_101"
+  # pretrained_res: "./model/pretrained_model/resnet_v1_101"
+  pretrained_res: "./model/pretrained_model/fcis_coco"
+  pretrained_vgg: "./model/pretrained_model/vgg_16"
   pretrained_epoch: 0
   PIXEL_MEANS:
   - 103.06
@@ -53,7 +55,7 @@ network:
 dataset:
   NUM_CLASSES: 81
   dataset: coco
-  dataset_path: "./data/coco"
+  dataset_path: "/data/coco"
   image_set: train2014+valminusminival2014
   root_path: "./data"
   test_image_set: test-dev2015

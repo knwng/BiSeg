@@ -3,7 +3,7 @@ MXNET_VERSION: "mxnet-origin"
 # MXNET_VERSION: "mxnet"
 output_path: "./output/fcis/voc"
 symbol: resnet_v1_101_fcis_biseg
-gpus: "0,1" 
+gpus: "0" 
 # gpus: "2,3"
 CLASS_AGNOSTIC: true
 SCALES:
@@ -75,14 +75,14 @@ dataset:
 # whether use semantic segmentation
 SS: true
 TRAIN:
-  lr: 0.0005
-  lr_step: '14'
+  lr: 0.001
+  lr_step: '28'
   warmup: false
   warmup_lr: 0.00005
   # typically we will use 4000 warmup step for single GPU
   warmup_step: 0
   begin_epoch: 0
-  end_epoch: 22
+  end_epoch: 42
   model_prefix: 'e2e'
   # whether resume training
   RESUME: false
@@ -175,7 +175,7 @@ TEST:
   PROPOSAL_MIN_SIZE: 16
   # RCNN nms
   NMS: 0.3
-  test_epoch: 21
+  test_epoch: 42
   # ITER 2 & mask merge
   ITER: 2
   MIN_DROP_SIZE: 16

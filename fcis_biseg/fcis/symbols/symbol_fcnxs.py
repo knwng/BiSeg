@@ -144,7 +144,8 @@ def fcnxs_score(input_, crop, offset, ss_masks=None, kernel=(64,64), stride=(32,
     # upscore = mx.symbol.Crop(*[bigscore, crop], offset=offset, name="upscore")
     # upscore = mx.symbol.Crop(*[input, crop], offset=offset, name="upscore")
     if ss_masks is not None:
-    	softmax = mx.symbol.SoftmaxOutput(data=upscore, label=ss_masks, multi_output=True, use_ignore=True, ignore_label=255, name="fcn-softmax", grad_scale=2e-8) # 2e-13
+    	# softmax = mx.symbol.SoftmaxOutput(data=upscore, label=ss_masks, multi_output=True, use_ignore=True, ignore_label=255, name="fcn-softmax", normalization='valid') # 2e-13
+    	softmax = mx.symbol.SoftmaxOutput(data=upscore, label=ss_masks, multi_output=True, use_ignore=True, ignore_label=255, name="fcn-softmax", grad_scale=1e-8, normalization='valid') # 2e-13
     else:
 	softmax = mx.symbol.softmax(data=upscore, axis=1, name="fcn-softmax")
     # return mx.symbol.Group([softmax, upscore])
@@ -165,7 +166,7 @@ def get_fcn32s_symbol(data, data_ori, masks=None, numclass=21, workspace_default
     	softmax = fcnxs_score(data, data_ori, offset()["fcn32s_upscore"], masks, (32,32), (16,16), numclass, workspace_default)
     else:
     	# softmax = fcnxs_score(data, data_ori, offset()["fcn32s_upscore"], (64,64), (32,32), numclass, workspace_default)
-    	softmax = fcnxs_score(data, data_ori, offset()["fcn32s_upscore"], (32,32), (16,16), numclass, workspace_default)
+    	softmax = fcnxs_score(input_=data, crop=data_ori, offset=offset()["fcn32s_upscore"], kernel=(32,32), stride=(16,16), numclass=numclass, workspace_default=workspace_default)
     return softmax
 
 def get_fcn16s_symbol(data, is_train=True, ss_masks=None, numclass=21, workspace_default=1024):
@@ -183,25 +184,13 @@ def get_fcn16s_symbol(data, is_train=True, ss_masks=None, numclass=21, workspace
     if is_train:
     	softmax = fcnxs_score(input_=score_fused, crop=data, offset=offset()["fcn16s_upscore"], 
 		ss_masks=ss_masks, kernel=(32, 32), stride=(16, 16), numclass=numclass, workspace_default=workspace_default)
-    	# pre_output = mx.symbol.sigmoid(data=score_fused, name="pre_output")
     	pre_output = mx.symbol.softmax(data=score_fused, axis=1, name="pre_output")
     	return mx.symbol.Group([pre_output, softmax])
-	# return mx.symbol.BlockGrad(pre_output)
     else:
-    	# softmax = fcnxs_score(input_=score_fused, crop=data, offset=offset()["fcn16s_upscore"], kernel=(32, 32), stride=(16, 16), numclass=numclass, workspace_default=workspace_default)
-    	# pre_output = mx.symbol.sigmoid(data=score_fused, name="pre_output")
     	pre_output = mx.symbol.sigmoid(data=score_fused, axis=1, name="pre_output")
 	return pre_output
-    # softmax = fcnxs_score(score_fused, data, offset()["fcn16s_upscore"], (32, 32), (16, 16), numclass, workspace_default)
-    # pre_sfmx = mx.symbol.SoftmaxActivation(data=score_fused, name="pre_sftmx")
 
-def get_fcn8s_symbol(data, masks=None, numclass=21, workspace_default=1024):
-# def get_fcn8s_symbol(numclass=21, workspace_default=1024):
-    # import data shape = [batch_size, channel, height, width]
-    # data = mx.symbol.Variable(name="data")
-    # pool3 = vgg16_pool3(data, workspace_default)
-    # pool4 = vgg16_pool4(pool3, workspace_default)
-    # score = vgg16_score(pool4, numclass, workspace_default)
+def get_fcn8s_symbol(data, data_ori, masks=None, numclass=21, workspace_default=1024):
     # score 2X
     score2 = mx.symbol.Deconvolution(data=score, kernel=(4, 4), stride=(2, 2),num_filter=numclass,
                 adj=(1, 1), workspace=workspace_default, name="score2")  # 2X

@@ -114,8 +114,7 @@ def pred_eval(predictor, test_data, imdb, cfg, vis=False, thresh=1e-3, logger=No
                     for j in range(1, imdb.num_classes):
                         indexes = np.where(scores[:, j] > thresh)[0]
                         cls_scores = scores[indexes, j, np.newaxis]
-                        # cls_masks = masks[indexes, 1, :, :]
-                        cls_masks = masks[indexes, 0, :, :]
+                        cls_masks = masks[indexes, 1, :, :]
                         try:
                             if cfg.CLASS_AGNOSTIC:
                                 cls_boxes = boxes[indexes, :]
