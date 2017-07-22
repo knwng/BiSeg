@@ -28,6 +28,7 @@ from mxnet import optimizer as opt
 
 import matplotlib.pyplot as plt
 from scipy import misc
+import numpy as np
 
 
 class Module(BaseModule):
@@ -1033,31 +1034,40 @@ class MutableModule(BaseModule):
             self._curr_module = module
 
         self._curr_module.forward(data_batch, is_train=is_train)
-	# print 'get : ', self._curr_module.get_outputs()[-1].asnumpy()
+	'''
+	# print 'get params of FCIS weight: ', self._curr_module.get_params()[0]['conv1_weight'].asnumpy().mean()
+	print 'get ss_masks: ', self._curr_module.get_outputs(merge_multi_context=False)[-1][0].asnumpy().max()
+	print 'get ss_preds: ', self._curr_module.get_outputs(merge_multi_context=False)[-2][0].asnumpy().max()
 	# print 'get params: ', 'conv1_bias' in self._curr_module.get_params()[0]
 	# print 'get params: ', 'conv1_1_bias' in self._curr_module.get_params()[0]
 	# print 'get params of FCN weight: ', self._curr_module.get_params()[0]['conv1_1_weight'].asnumpy().mean()
 	# print 'get params of FCN bias: ', self._curr_module.get_params()[0]['conv1_1_bias'].asnumpy().mean()
-	# print 'get params of FCIS weight: ', self._curr_module.get_params()[0]['conv1_weight'].asnumpy().mean()
 	# print 'get params of FCIS bias: ', self._curr_module.get_params()[0]['conv1_bias'].asnumpy().mean()
 	# print 'get seg_prob outputs: ', self._curr_module.get_outputs()[-7].asnumpy().mean()
 	# print 'get seg_targets outputs: ', self._curr_module.get_outputs()[-6].asnumpy().mean()
 	# print 'get fcn outputs: ', self._curr_module.get_outputs()[-4].asnumpy().mean()
 	# print 'get seg outputs: ', self._curr_module.get_outputs()[-3].asnumpy().mean()
 	# print 'get outputs after inference: ', self._curr_module.get_outputs()[-2].asnumpy().mean()
-	'''
-	ss_masks = self._curr_module.get_outputs()[-1].asnumpy()
+	ss_masks = self._curr_module.get_outputs(merge_multi_context=False)[-1][0].asnumpy()
+	ss_preds = self._curr_module.get_outputs(merge_multi_context=False)[-2][0].asnumpy()
 	for i in range(21):
-		print 'save ss_masks ' + str(i)
+		# print 'save ss_masks&preds ' + str(i)
+		print 'ss_masks max: ', ss_masks[0][i].max()
+		print 'ss_masks median: ', np.unique(ss_masks[0][i])
+		print 'ss_preds max: ', ss_preds[0][i].max()
+		print 'ss_preds median: ', np.unique(ss_preds[0][i])
 		misc.imsave('ss_masks_' + str(i) + '.png', ss_masks[0][i])
-	print 'get output_names: ', self._curr_module.output_names
-	print 'get output_shapes: ', self._curr_module.output_shapes
+		misc.imsave('ss_preds_' + str(i) + '.png', ss_preds[0][i])
+		pass
+	# print 'get output_names: ', self._curr_module.output_names
+	# print 'get output_shapes: ', self._curr_module.output_shapes
 	'''
-
 
     def backward(self, out_grads=None):
         assert self.binded and self.params_initialized
         self._curr_module.backward(out_grads=out_grads)
+	# print ': ', out_grads
+	# print 'get gradients: ', self._curr_module.get_input_grads(merge_multi_context=False)[-1][0].asnumpy()
 
     def update(self):
         assert self.binded and self.params_initialized and self.optimizer_initialized

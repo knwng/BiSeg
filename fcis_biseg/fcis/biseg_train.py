@@ -110,13 +110,11 @@ def train_net(args, ctx, pretrained_res, pretrained_vgg, epoch, prefix, begin_ep
     # print 'symbol inshape: %s ' % (str(inshape))
     # print 'symbol outshape: %s' % (str(outshape))
 
-    '''
     internals = sym.get_internals()
     _, out_shapes, _ = internals.infer_shape(**data_shape_dict)
     print(sym.list_outputs())
     shape_dict = dict(zip(internals.list_outputs(), out_shapes))
     pprint.pprint(shape_dict)
-    '''
 
     # load and initialize params
     if config.TRAIN.RESUME:
@@ -163,7 +161,7 @@ def train_net(args, ctx, pretrained_res, pretrained_vgg, epoch, prefix, begin_ep
     fcis_cls_loss = metric.FCISLogLossMetric(config)
     fcis_bbox_loss = metric.FCISL1LossMetric(config)
     fcis_mask_loss = metric.FCISMaskLossMetric(config)
-    fcn_acc = metric.FCNAccMetric(config)
+    fcn_acc = metric.FCNAccFGMetric(config)
 
     eval_metrics = mx.metric.CompositeEvalMetric()
     # accumulate all loss, fcn-8s loss should be added here

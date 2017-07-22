@@ -8,6 +8,7 @@
 
 import mxnet as mx
 import numpy as np
+from scipy import misc
 
 
 def get_rpn_names():
@@ -228,9 +229,9 @@ class FCISMaskLossMetric(mx.metric.EvalMetric):
         self.sum_metric += cls_loss
         self.num_inst += len(keep_inds)
 
-class FCNAccMetric(mx.metric.EvalMetric):
+class FCNAccFGMetric(mx.metric.EvalMetric):
     def __init__(self, cfg):
-	super(FCNAccMetric, self).__init__('FCNAcc')
+	super(FCNAccFGMetric, self).__init__('FCNAccFG')
 	self.e2e = cfg.TRAIN.END2END
 	self.pred, self.label = get_rcnn_names(cfg)
 	self.cfg = cfg
@@ -242,11 +243,30 @@ class FCNAccMetric(mx.metric.EvalMetric):
 	else:
 	    raise NotImplementedError
 	# print 'label_shape origin: ', label.asnumpy().shape
+	'''
+	print 'masks shape: ', masks.shape
+	print 'label shape: ', label.shape
+	for i in range(21):
+	    print 'save img'
+	    misc.imsave('/data2/wqian/ss_masks_' + str(i) + '.png', masks.asnumpy()[0][i])
+	    misc.imsave('/data2/wqian/ss_preds_' + str(i) + '.png', label.asnumpy()[0][i])
+	'''
 	masks = mx.nd.array(masks.reshape((masks.shape[0], masks.shape[1], masks.shape[2] * masks.shape[3])))
 	# label = label[0]
 	label = mx.nd.array(label.reshape((label.shape[0], label.shape[1], label.shape[2] * label.shape[3])))
 	# print 'masks_shape: ', masks.asnumpy().shape
 	# print 'label_shape: ', label.asnumpy().shape
+	mask_list = mx.nd.split(data=masks, num_outputs=21, axis=1)
+	label_list = mx.nd.split(data=label, num_outputs=21, axis=1)
+	mask_tmp = []
+	label_tmp = []
+	for i in range(21):
+	    if mx.nd.max(label_list[i]).asnumpy() > 0.01:
+		mask_tmp.append(mask_list[i])
+		label_tmp.append(label_list[i])
+	masks = mx.nd.concat(*mask_tmp, dim=1)
+	label = mx.nd.concat(*label_tmp, dim=1)
+
 	
 	met = mx.metric.Accuracy()
 	met.update(labels=[label], preds=[masks])
