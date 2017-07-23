@@ -276,3 +276,25 @@ class FCNAccFGMetric(mx.metric.EvalMetric):
 	self.sum_metric += met.sum_metric
 	# self.num_inst = self.cfg.dataset.NUM_CLASSES
 	self.num_inst += met.num_inst
+
+
+
+class FCNAccMetric(mx.metric.EvalMetric):
+    def __init__(self, cfg):
+	super(FCNAccMetric, self).__init__('FCNAcc')
+	self.e2e = cfg.TRAIN.END2END
+	self.pred, self.label = get_rcnn_names(cfg)
+	self.cfg = cfg
+
+    def update(self, labels, preds):
+	masks = preds[self.pred.index('ss_preds')]
+	if self.e2e:
+	    label = preds[self.pred.index('ss_masks')]
+	else:
+	    raise NotImplementedError
+	masks = mx.nd.array(masks.reshape((masks.shape[0], masks.shape[1], masks.shape[2] * masks.shape[3])))
+	label = mx.nd.array(label.reshape((label.shape[0], label.shape[1], label.shape[2] * label.shape[3])))
+	met = mx.metric.Accuracy()
+	met.update(labels=[label], preds=[masks])
+	self.sum_metric += met.sum_metric
+	self.num_inst += met.num_inst

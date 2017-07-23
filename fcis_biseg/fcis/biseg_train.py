@@ -161,7 +161,8 @@ def train_net(args, ctx, pretrained_res, pretrained_vgg, epoch, prefix, begin_ep
     fcis_cls_loss = metric.FCISLogLossMetric(config)
     fcis_bbox_loss = metric.FCISL1LossMetric(config)
     fcis_mask_loss = metric.FCISMaskLossMetric(config)
-    fcn_acc = metric.FCNAccFGMetric(config)
+    # fcn_acc_fg = metric.FCNAccFGMetric(config)
+    fcn_acc = metric.FCNAccMetric(config)
 
     eval_metrics = mx.metric.CompositeEvalMetric()
     # accumulate all loss, fcn-8s loss should be added here

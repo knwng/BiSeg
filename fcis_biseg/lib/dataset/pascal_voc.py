@@ -123,8 +123,8 @@ class PascalVOC(IMDB):
         # cache flip ss_masks
         ss_mask_flip_file = os.path.join(cache_file, index + '_cls_flip.hkl')
         if not os.path.exists(ss_mask_flip_file):
-            # hkl.dump(ss_mask[:, :, ::-1].astype('bool'), ss_mask_flip_file, mode='w', compression='gzip')
-            hkl.dump(ss_mask[:, :, :, ::-1].astype('bool'), ss_mask_flip_file, mode='w', compression='gzip')
+            hkl.dump(ss_mask[:, :, ::-1].astype('bool'), ss_mask_flip_file, mode='w', compression='gzip')
+            # hkl.dump(ss_mask[:, :, :, ::-1].astype('bool'), ss_mask_flip_file, mode='w', compression='gzip')
         return ss_mask_file
 
     def gt_roidb(self):
@@ -195,11 +195,14 @@ class PascalVOC(IMDB):
         num_cls = len(unique_cls)
         # boxes = np.zeros((num_cls, 4), dtype=np.uint16)
         # gt_classes = np.zeros(num_cls, dtype=np.int32)
+	'''
         ss_masks = np.zeros((self.num_classes,size[0], size[1]))
         for idx, cls_id in enumerate(unique_cls):
             cur_ss_mask = (seg_cls_data == cls_id)
             ss_masks[idx, :, :] = cur_ss_mask
-	# ss_masks = seg_obj_data
+	'''
+	ss_masks = np.array(seg_obj_data)
+	ss_masks = np.expand_dims(ss_masks, axis=0)
         unique_inst = np.unique(seg_obj_data)   # get unique instance label (defined by color)
         background_ind = np.where(unique_inst == 0)[0]
         unique_inst = np.delete(unique_inst, background_ind)

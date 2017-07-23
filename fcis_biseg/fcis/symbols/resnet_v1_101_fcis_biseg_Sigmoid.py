@@ -18,7 +18,7 @@ import symbol_fcnxs
 from net_util import *
 
 
-class resnet_v1_101_fcis_biseg(Symbol):
+class resnet_v1_101_fcis_biseg_Sigmoid(Symbol):
 
     def __init__(self):
         """
@@ -172,7 +172,8 @@ class resnet_v1_101_fcis_biseg(Symbol):
 		lateral_resize = mx.sym.Deconvolution(data=lateral_conn_0, kernel=(2, 2), stride=(1, 1), num_filter=num_classes, name="lateral_resize")
 		lateral_crop = mx.sym.Crop(*[lateral_resize, ss_masks_resize], center_crop=True, name="lateral_crop")
 		# ss_pred = mx.sym.SoftmaxOutput(data=lateral_crop, label=ss_masks_resize, multi_output=True, use_ignore=True, ignore_label=-1, name="fcn_softmax", normalization='valid', grad_scale=1./num_classes)
-		ss_pred = mx.sym.SoftmaxOutput(data=lateral_crop, label=ss_masks_resize, multi_output=True, use_ignore=True, ignore_label=255, name="fcn_softmax", normalization='valid', grad_scale=1e-8)
+		# ss_pred = mx.sym.SoftmaxOutput(data=lateral_crop, label=ss_masks_resize, multi_output=True, use_ignore=True, ignore_label=-1, name="fcn_softmax", normalization='valid', grad_scale=1e-8)
+		ss_pred = mx.sym.LogisticRegressionOutput(data=lateral_crop, label=ss_masks_resize, name="fcn_sigmoid", grad_scale=1)	#1e-8
 		# ss_pred = mx.sym.SoftmaxOutput(data=lateral_crop, label=ss_masks_resize, name="fcn_softmax", normalization='valid', grad_scale=1e-5)
 		# ss_pred = mx.sym.SoftmaxOutput(data=lateral_crop, label=ss_masks_resize, use_ignore=True, ignore_label=-1, name="fcn_softmax", normalization='valid')
 		# ss_pred = mx.sym.SoftmaxOutput(data=lateral_crop, label=ss_masks_resize, multi_output=True, use_ignore=True, ignore_label=255, name="fcn_softmax", normalization='valid', grad_scale=1./num_classes)

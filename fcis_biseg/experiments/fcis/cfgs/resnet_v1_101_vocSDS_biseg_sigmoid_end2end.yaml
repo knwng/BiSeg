@@ -2,8 +2,8 @@
 MXNET_VERSION: "mxnet-origin"
 # MXNET_VERSION: "mxnet"
 output_path: "./output/fcis/voc"
-symbol: resnet_v1_101_fcis_biseg
-gpus: "0,1" 
+symbol: "resnet_v1_101_fcis_biseg_Sigmoid"
+gpus: "1,3" 
 # gpus: "2,3"
 CLASS_AGNOSTIC: true
 SCALES:
@@ -81,11 +81,11 @@ TRAIN:
   warmup_lr: 0.00005
   # typically we will use 4000 warmup step for single GPU
   warmup_step: 0
-  begin_epoch: 13
+  begin_epoch: 0
   end_epoch: 22
   model_prefix: 'e2e'
   # whether resume training
-  RESUME: true
+  RESUME: false
   # whether flip image
   FLIP: true
   # whether shuffle image
