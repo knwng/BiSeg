@@ -718,8 +718,8 @@ class resnet_v1_101_fcis(Symbol):
 
 	
         # semantic segmentation using fcn-8s
-        fcnx = symbol_fcnxs.get_fcn8s_symbol(data=data, masks=ss_masks, numclass=num_classes, workspace_default=1536)
-	fcnx = mx.sym.Pooling(data=fcnx, kernel=(16, 16), pool_type='max', stride=(16, 16), name='fcn_pool')
+        fcnx_1 = symbol_fcnxs.get_fcn8s_symbol(data=data, masks=ss_masks, numclass=num_classes, workspace_default=1536)
+	# fcnx = mx.sym.Pooling(data=fcnx, kernel=(16, 16), pool_type='max', stride=(16, 16), name='fcn_pool')
         # shared convolutional layers
         conv_feat = self.get_resnet_v1_conv4(data)
         # res5
@@ -813,7 +813,7 @@ class resnet_v1_101_fcis(Symbol):
         fcis_bbox = mx.sym.Convolution(data=relu_new_1, kernel=(1, 1), num_filter=7*7*4*num_reg_classes,
                                        name='fcis_bbox')
 	# if is_train:
-	fcnx = mx.sym.ROIPooling(data=fcnx, rois=rois, pooled_size=(21, 21), spatial_scale=0.0625, name='roipool_fcn')
+	fcnx = mx.sym.ROIPooling(data=fcnx_1, rois=rois, pooled_size=(21, 21), spatial_scale=1, name='roipool_fcn')
         psroipool_cls_seg_0 = mx.contrib.sym.PSROIPooling(name='psroipool_cls_seg_0', data=fcis_cls_seg, rois=rois,
                                                         group_size=7, pooled_size=21, output_dim=num_classes*2, spatial_scale=0.0625)
         cls_seg_split = mx.sym.split(name='cls_seg_split', data=psroipool_cls_seg_0, axis=1, num_outputs=2)
@@ -890,7 +890,7 @@ class resnet_v1_101_fcis(Symbol):
                                       name='cls_prob_reshape')
             bbox_loss = mx.sym.Reshape(data=bbox_loss, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 4 * num_reg_classes),
                                        name='bbox_loss_reshape')
-            group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label)])
+            group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label), fcnx_1, mx.sym.BlockGrad(ss_masks)])
             # group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, ss_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label)])
         else:
             cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
@@ -955,15 +955,13 @@ class resnet_v1_101_fcis(Symbol):
         arg_params['fcis_bbox_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fcis_bbox_weight'])
         arg_params['fcis_bbox_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['fcis_bbox_bias'])
         # init fcn-8s parameters
-        '''
-        arg_params['score_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fcis_bbox_weight'])
-        arg_params['score_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['fcis_bbox_bias'])
-        arg_params['score_pool4_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fcis_bbox_weight'])
-        arg_params['score_pool4_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['fcis_bbox_bias'])
-        arg_params['score_pool3_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fcis_bbox_weight'])
-        arg_params['score_pool3_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['fcis_bbox_bias'])
-        arg_params['bigscore_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fcis_bbox_weight'])
-        arg_params['score2_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fcis_bbox_weight'])
-        arg_params['scor4_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fcis_bbox_weight'])
-        '''
+        arg_params['score_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['score_weight'])
+        arg_params['score_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['score_bias'])
+        arg_params['score_pool4_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['score_pool4_weight'])
+        arg_params['score_pool4_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['score_pool4_bias'])
+        arg_params['score_pool3_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['score_pool3_weight'])
+        arg_params['score_pool3_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['score_pool3_bias'])
+        arg_params['bigscore_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['bigscore_weight'])
+        arg_params['score2_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['score2_weight'])
+        arg_params['score4_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['score4_weight'])
 
