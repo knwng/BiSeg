@@ -136,20 +136,20 @@ def vgg16_score(input, numclass, workspace_default=1024):
 
 def fcnxs_score(input_, crop, offset, ss_masks=None, kernel=(64,64), stride=(32,32), numclass=21, workspace_default=1024):
     # score out
-    # bigscore = mx.symbol.Deconvolution(data=input_, kernel=kernel, stride=stride, adj=(stride[0]-1, stride[1]-1),
-    #            num_filter=numclass, workspace=workspace_default, name="bigscore")
     bigscore = mx.symbol.Deconvolution(data=input_, kernel=kernel, stride=stride, adj=(stride[0]-1, stride[1]-1),
                num_filter=numclass, workspace=workspace_default, name="bigscore")
-    upscore = mx.symbol.Crop(*[bigscore, crop], center_crop=True, name="upscore")
-    # upscore = mx.symbol.Crop(*[bigscore, crop], offset=offset, name="upscore")
+    # bigscore = mx.symbol.Deconvolution(data=input_, kernel=kernel, stride=stride, adj=(stride[0]-1, stride[1]-1),
+    #            num_filter=numclass, workspace=workspace_default, name="bigscore")
+    # upscore = mx.symbol.Crop(*[bigscore, crop], center_crop=True, name="upscore")
+    upscore = mx.symbol.Crop(*[bigscore, crop], offset=offset, name="upscore")
     # upscore = mx.symbol.Crop(*[input, crop], offset=offset, name="upscore")
     if ss_masks is not None:
-    	# softmax = mx.symbol.SoftmaxOutput(data=upscore, label=ss_masks, multi_output=True, use_ignore=True, ignore_label=255, name="fcn-softmax", normalization='valid') # 2e-13
-    	softmax = mx.symbol.SoftmaxOutput(data=upscore, label=ss_masks, multi_output=True, use_ignore=True, ignore_label=255, name="fcn-softmax", grad_scale=1e-8, normalization='valid') # 2e-13
+    	softmax = mx.symbol.SoftmaxOutput(data=upscore, label=ss_masks, multi_output=True, use_ignore=True, ignore_label=255, name="fcn-softmax", normalization='valid') # 2e-13
     else:
 	softmax = mx.symbol.softmax(data=upscore, axis=1, name="fcn-softmax")
     # return mx.symbol.Group([softmax, upscore])
-    return mx.symbol.Group([upscore, softmax])
+    # return mx.symbol.Group([upscore, softmax])
+    return softmax
 
 def get_fcn32s_symbol(data, data_ori, masks=None, numclass=21, workspace_default=1024):
     # data = mx.symbol.Variable(name="data")
@@ -195,11 +195,11 @@ def get_fcn16s_symbol(data, res3, data_ori, masks=None, numclass=21, workspace_d
     # return mx.symbol.Group([score_fused, softmax])
     return softmax
 
-def get_fcn8s_symbol(data, data_ori, masks=None, numclass=21, workspace_default=1024):
+def get_fcn8s_symbol(data, masks=None, numclass=21, workspace_default=1024):
     # data = mx.symbol.Variable(name="data")
-    # pool3 = vgg16_pool3(data, workspace_default)
-    # pool4 = vgg16_pool4(pool3, workspace_default)
-    # score = vgg16_score(pool4, numclass, workspace_default)
+    pool3 = vgg16_pool3(data, workspace_default)
+    pool4 = vgg16_pool4(pool3, workspace_default)
+    score = vgg16_score(pool4, numclass, workspace_default)
     # score 2X
     score2 = mx.symbol.Deconvolution(data=score, kernel=(4, 4), stride=(2, 2),num_filter=numclass,
                 adj=(1, 1), workspace=workspace_default, name="score2")  # 2X
@@ -225,4 +225,3 @@ def get_fcn8s_symbol(data, data_ori, masks=None, numclass=21, workspace_default=
     # just return softmax score map, loss will be defined later in biseg.py
     # output shape is [batch_size, numclass, height, width]
     return softmax
-    # return mx.symbol.Group(softmax, score_fused)

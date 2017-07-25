@@ -7,37 +7,16 @@
 
 import cPickle
 import mxnet as mx
-import numpy as np
 from utils.symbol import Symbol
 from operator_py.proposal import *
 from operator_py.proposal_annotator import *
 from operator_py.box_parser import *
 from operator_py.box_annotator_ohem import *
 import symbol_fcnxs
-# from net_util import get_resnet_v1_conv4, get_resnet_v1_conv5, get_rpn
 from net_util import *
-# from init_fcnxs import upsample_filt
-
-def upsample_filt(shape):
-    size = shape[-1]
-    img_size = shape[0]
-    factor = (size + 1) // 2
-    if size % 2 == 1:
-	center = factor - 1.0
-    else:
-	center = factor - 0.5
-    og = np.ogrid[:size, :size]
-    filt = mx.nd.array((1 - abs(og[0] - center) / factor) * (1 - abs(og[1] - center) / factor))
-    filt = mx.nd.expand_dims(data=filt, axis=0)
-    filt = mx.nd.expand_dims(data=filt, axis=0)
-    filt = mx.nd.concat(*[filt for _ in range(img_size)], dim=1)
-    filt = mx.nd.concat(*[filt for _ in range(img_size)], dim=0)
-    print 'upsample filter: ', filt.asnumpy()
-    return filt
-    
 
 
-class resnet_v1_101_fcis_biseg(Symbol):
+class resnet_v1_101_fcis_biseg_pretrained(Symbol):
 
     def __init__(self):
         """
@@ -59,7 +38,6 @@ class resnet_v1_101_fcis_biseg(Symbol):
         # input init
         if is_train:
             data = mx.sym.Variable(name='data')
-	    # data_ss = mx.sym.Variable(name='data_ss')
             im_info = mx.sym.Variable(name='im_info')
             gt_boxes = mx.sym.Variable(name='gt_boxes')
             gt_masks = mx.sym.Variable(name='gt_masks')
@@ -69,25 +47,17 @@ class resnet_v1_101_fcis_biseg(Symbol):
             rpn_bbox_weight = mx.sym.Variable(name='proposal_bbox_weight')
         else:
             data = mx.sym.Variable(name="data")
-	    # data_ss = mx.sym.Variable(name="data_ss")
+            # im_info = [height, width]; store input image information
             im_info = mx.sym.Variable(name="im_info")
+
 	
+        # semantic segmentation using fcn-8s
+        fcnx_1 = symbol_fcnxs.get_fcn8s_symbol(data=data, masks=ss_masks, numclass=num_classes, workspace_default=1536)
+	# fcnx = mx.sym.Pooling(data=fcnx, kernel=(16, 16), pool_type='max', stride=(16, 16), name='fcn_pool')
         # shared convolutional layers
-        # conv_feat = get_resnet_v1_conv4(data)
-        # res4b22_relu, res3b3_relu, res2c_relu = get_resnet_v1_conv4(data, eps=self.eps)
         conv_feat, res3_relu, _ = get_resnet_v1_conv4(data, eps=self.eps)
         # res5
-        # relu1 = get_resnet_v1_conv5(conv_feat)
         relu1 = get_resnet_v1_conv5(conv_feat, eps=self.eps)
-	'''
-        # semantic segmentation using fcn-8s
-	if is_train:
-       		fcnx_1 = symbol_fcnxs.get_fcn32s_symbol(data=relu1, data_ori=data,  
-			masks=ss_masks, numclass=num_classes, workspace_default=3072) # 1536
-	else:
-		fcnx_1 = symbol_fcnxs.get_fcn32s_symbol(data=relu1, data_ori=data, numclass=num_classes, workspace_default=3072)
-	fcnx = fcnx_1
-	'''
 
         # Add RPN from conv4
         rpn_cls_score, rpn_bbox_pred = get_rpn(conv_feat, num_anchors)
@@ -168,41 +138,16 @@ class resnet_v1_101_fcis_biseg(Symbol):
         else:
             conv_new_1 = mx.sym.Convolution(data=relu1, kernel=(1, 1), num_filter=1024, name='conv_new_1')
         relu_new_1 = mx.sym.Activation(data=conv_new_1, act_type='relu', name='relu_new_1')
-	'''
-        # semantic segmentation using fcn-8s
-	if is_train:
-       		fcnx_1 = symbol_fcnxs.get_fcn16s_symbol(data=relu_new_1, res3=res3_relu, data_ori=data,  
-			masks=ss_masks, numclass=num_classes, workspace_default=3072) # 1536
-	else:
-		fcnx_1 = symbol_fcnxs.get_fcn16s_symbol(data=relu_new_1, res3=res3_relu, data_ori=data, 
-			numclass=num_classes, workspace_default=3072)
-	fcnx = fcnx_1[0]
-	fcnx_1 = fcnx_1[1]
-	'''
-	#
-	#
-	#
-	lateral_conn_0 = mx.sym.Convolution(data=relu1, kernel=(1, 1), num_filter=num_classes, name='lateral_connection')
-	lateral_conn = mx.sym.sigmoid(data=lateral_conn_0, name='lateral_sigmoid')
-	fcnx = mx.sym.ROIPooling(data=lateral_conn, rois=rois, pooled_size=(21, 21), spatial_scale=0.0625, name='roipool_fcn')
-	if is_train:
-		ss_masks_resize = mx.sym.Pooling(data=ss_masks, kernel=(16, 16), pool_type='max', stride=(16, 16), name='ss_masks_pool')
-		# lateral_resize = mx.sym.Deconvolution(data=lateral_conn_0, kernel=(2, 2), stride=(2, 2), num_filter=num_classes, adj=(1,1), name="lateral_resize")
-		lateral_resize = mx.sym.Deconvolution(data=lateral_conn_0, kernel=(2, 2), stride=(1, 1), num_filter=num_classes, name="lateral_resize")
-		lateral_crop = mx.sym.Crop(*[lateral_resize, ss_masks_resize], center_crop=True, name="lateral_crop")
-		# ss_pred = mx.sym.SoftmaxOutput(data=lateral_crop, label=ss_masks_resize, multi_output=True, use_ignore=True, ignore_label=-1, name="fcn_softmax", normalization='valid', grad_scale=1./num_classes)
-		ss_pred = mx.sym.SoftmaxOutput(data=lateral_crop, label=ss_masks_resize, multi_output=True, use_ignore=True, ignore_label=255, name="fcn_softmax", normalization='valid', grad_scale=1e-8)
-		# ss_pred = mx.sym.SoftmaxOutput(data=lateral_crop, label=ss_masks_resize, name="fcn_softmax", normalization='valid', grad_scale=1e-5)
-		# ss_pred = mx.sym.SoftmaxOutput(data=lateral_crop, label=ss_masks_resize, use_ignore=True, ignore_label=-1, name="fcn_softmax", normalization='valid')
-		# ss_pred = mx.sym.SoftmaxOutput(data=lateral_crop, label=ss_masks_resize, multi_output=True, use_ignore=True, ignore_label=255, name="fcn_softmax", normalization='valid', grad_scale=1./num_classes)
-	#
-	#
-	#
+	# use 1x1 conv to reduce channels
+	# channel_transfer = mx.sym.Convolution(data=relu_new_1, kernel=(1, 1), num_filter=3, name='channel_transfer')
+
         # 7 represent the size of regular grid
         fcis_cls_seg = mx.sym.Convolution(data=relu_new_1, kernel=(1, 1), num_filter=7*7*num_classes*2,
                                           name='fcis_cls_seg')
         fcis_bbox = mx.sym.Convolution(data=relu_new_1, kernel=(1, 1), num_filter=7*7*4*num_reg_classes,
                                        name='fcis_bbox')
+	# if is_train:
+	fcnx = mx.sym.ROIPooling(data=fcnx_1, rois=rois, pooled_size=(21, 21), spatial_scale=1, name='roipool_fcn')
         psroipool_cls_seg_0 = mx.contrib.sym.PSROIPooling(name='psroipool_cls_seg_0', data=fcis_cls_seg, rois=rois,
                                                         group_size=7, pooled_size=21, output_dim=num_classes*2, spatial_scale=0.0625)
         cls_seg_split = mx.sym.split(name='cls_seg_split', data=psroipool_cls_seg_0, axis=1, num_outputs=2)
@@ -251,6 +196,10 @@ class resnet_v1_101_fcis_biseg(Symbol):
                 seg_prob = mx.sym.SoftmaxOutput(name='seg_prob', data=seg_pred, label=mask_targets_ohem, multi_output=True,
                                                 normalization='null', use_ignore=True, ignore_label=-1,
                                                 grad_scale=cfg.TRAIN.LOSS_WEIGHT[1] / cfg.TRAIN.BATCH_ROIS_OHEM)
+                # semantic segmentation loss
+                # ss_prob = mx.sym.SoftmaxOutput(name='ss_prob', data=fcnx, label=mask_targets_ohem, multi_output=True,
+                #                                 normalization='null', use_ignore=True, ignore_label=-1,
+                #                                 grad_scale=cfg.TRAIN.LOSS_WEIGHT[1] / cfg.TRAIN.BATCH_ROIS_OHEM)
                 bbox_loss_t = bbox_weights_ohem * mx.sym.smooth_l1(name='bbox_loss_t', scalar=1.0, data=(bbox_pred - bbox_target))
                 # bbox_loss_t = bbox_weights_ohem * mx.sym.smooth_l1(name='bbox_loss_t', scalar=1.0, data=(bbox_pred - bbox_target))
                 bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_t, grad_scale=cfg.TRAIN.LOSS_WEIGHT[2] / cfg.TRAIN.BATCH_ROIS_OHEM)
@@ -261,6 +210,10 @@ class resnet_v1_101_fcis_biseg(Symbol):
                 seg_prob = mx.sym.SoftmaxOutput(name='seg_prob', data=seg_pred, label=mask_reg_targets, multi_output=True,
                                                 normalization='null', use_ignore=True, ignore_label=-1,
                                                 grad_scale=cfg.TRAIN.LOSS_WEIGHT[1] / cfg.TRAIN.BATCH_ROIS)
+                # semantic segmentation loss
+                # ss_prob = mx.sym.SoftmaxOutput(name='ss_prob', data=fcnx, label=ss_masks, multi_output=True,
+                #                                 normalization='null', use_ignore=True, ignore_label=-1,
+                #                                 grad_scale=cfg.TRAIN.LOSS_WEIGHT[1] / cfg.TRAIN.BATCH_ROIS)
                 # bbox_loss_t = bbox_weights_ohem * mx.sym.smooth_l1(name='bbox_loss_t', scalar=1.0, data=(bbox_pred - bbox_target))
                 bbox_loss_t = bbox_weight * mx.sym.smooth_l1(name='bbox_loss_t', scalar=1.0, data=(bbox_pred - bbox_target))
                 bbox_loss = mx.sym.MakeLoss(name='bbox_loss', data=bbox_loss_t, grad_scale=cfg.TRAIN.LOSS_WEIGHT[2] / cfg.TRAIN.BATCH_ROIS)
@@ -271,10 +224,8 @@ class resnet_v1_101_fcis_biseg(Symbol):
                                       name='cls_prob_reshape')
             bbox_loss = mx.sym.Reshape(data=bbox_loss, shape=(cfg.TRAIN.BATCH_IMAGES, -1, 4 * num_reg_classes),
                                        name='bbox_loss_reshape')
-            # group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label)])
-            # group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label), fcnx_1, mx.sym.BlockGrad(ss_masks)])
-            # group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label), ss_pred, mx.sym.BlockGrad(ss_masks_crop)])
-            group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label), ss_pred, mx.sym.BlockGrad(ss_masks_resize)])
+            group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label), fcnx_1, mx.sym.BlockGrad(ss_masks)])
+            # group = mx.sym.Group([rpn_cls_prob, rpn_bbox_loss, cls_prob, bbox_loss, seg_prob, ss_prob, mx.sym.BlockGrad(mask_reg_targets), mx.sym.BlockGrad(rcnn_label)])
         else:
             cls_prob = mx.sym.SoftmaxActivation(name='cls_prob', data=cls_score)
             if cfg.TEST.ITER == 2:
@@ -331,23 +282,21 @@ class resnet_v1_101_fcis_biseg(Symbol):
         arg_params['rpn_bbox_pred_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['rpn_bbox_pred_bias'])
         arg_params['conv_new_1_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['conv_new_1_weight'])
         arg_params['conv_new_1_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['conv_new_1_bias'])
+	# arg_params['channel_transfer_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['channel_transfer_weight'])
+	# arg_params['channel_transfer_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['channel_transfer_bias'])
         arg_params['fcis_cls_seg_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fcis_cls_seg_weight'])
         arg_params['fcis_cls_seg_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['fcis_cls_seg_bias'])
         arg_params['fcis_bbox_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['fcis_bbox_weight'])
         arg_params['fcis_bbox_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['fcis_bbox_bias'])
-        arg_params['lateral_connection_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['lateral_connection_weight'])
-        arg_params['lateral_connection_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['lateral_connection_bias'])
-        # arg_params['lateral_resize_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['lateral_resize_weight'])
-        arg_params['lateral_resize_weight'] = upsample_filt(shape=self.arg_shape_dict['lateral_resize_weight'])
 	'''
-        # init fcn-32s parameters
-        arg_params['bigscore_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['bigscore_weight'])
-        arg_params['score2_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['score2_weight'])
-        arg_params['score_pool4_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['score_pool4_weight'])
-        arg_params['score_pool4_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['score_pool4_bias'])
+        # init fcn-8s parameters
         arg_params['score_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['score_weight'])
         arg_params['score_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['score_bias'])
+        arg_params['score_pool4_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['score_pool4_weight'])
+        arg_params['score_pool4_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['score_pool4_bias'])
         arg_params['score_pool3_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['score_pool3_weight'])
         arg_params['score_pool3_bias'] = mx.nd.zeros(shape=self.arg_shape_dict['score_pool3_bias'])
+        arg_params['bigscore_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['bigscore_weight'])
+        arg_params['score2_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['score2_weight'])
         arg_params['score4_weight'] = mx.random.normal(0, 0.01, shape=self.arg_shape_dict['score4_weight'])
 	'''

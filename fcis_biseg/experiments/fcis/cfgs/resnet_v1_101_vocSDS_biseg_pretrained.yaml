@@ -2,9 +2,8 @@
 MXNET_VERSION: "mxnet-origin"
 # MXNET_VERSION: "mxnet"
 output_path: "./output/fcis/voc"
-symbol: resnet_v1_101_fcis_biseg
-gpus: "0,2" 
-# gpus: "2,3"
+symbol: resnet_v1_101_fcis_biseg_pretrained
+gpus: "3" 
 CLASS_AGNOSTIC: true
 SCALES:
 - 600
@@ -17,8 +16,8 @@ default:
   kvstore: device
 network:
   pretrained_res: "./model/pretrained_model/resnet_v1_101"
-  pretrained_vgg: "./model/pretrained_model/vgg_16"
-  # pretrained_vgg: "./model/pretrained_model/FCN8s_VGG16"
+  # pretrained_vgg: "./model/pretrained_model/vgg_16"
+  pretrained_vgg: "./model/pretrained_model/FCN8s_VGG16"
   pretrained_epoch: 0
   PIXEL_MEANS:
   - 103.06
@@ -76,16 +75,16 @@ dataset:
 SS: true
 TRAIN:
   lr: 0.0005
-  lr_step: '28'
+  lr_step: '14'
   warmup: false
   warmup_lr: 0.00005
   # typically we will use 4000 warmup step for single GPU
   warmup_step: 0
-  begin_epoch: 21
-  end_epoch: 42
+  begin_epoch: 0
+  end_epoch: 22
   model_prefix: 'e2e'
   # whether resume training
-  RESUME: true
+  RESUME: false
   # whether flip image
   FLIP: true
   # whether shuffle image
@@ -175,7 +174,7 @@ TEST:
   PROPOSAL_MIN_SIZE: 16
   # RCNN nms
   NMS: 0.3
-  test_epoch: 41
+  test_epoch: 21
   # ITER 2 & mask merge
   ITER: 2
   MIN_DROP_SIZE: 16
